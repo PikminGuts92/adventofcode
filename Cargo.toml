@@ -1,0 +1,11 @@
+[package]
+name = "adventofcode2021"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+csv = "1.1"
+
+[dev-dependencies]
+criterion = "0.3"
+rstest = "0.11"
