@@ -97,25 +97,37 @@ impl<'a> BingoBoard<'a> {
     }
 }
 
-pub fn play_bingo(draws: &[u32], boards: &[[[u32; 5]; 5]]) -> u32 {
+pub fn play_bingo(draws: &[u32], boards: &[[[u32; 5]; 5]], until_all_win: bool) -> u32 {
+    let board_count = boards.len();
+
     let mut boards = boards
         .iter()
         .map(|b| BingoBoard::from(b))
         .collect::<Vec<BingoBoard>>();
 
     let mut winner = -1;
+    let mut winners = HashSet::new();
 
     for (draw_i, draw) in draws.iter().enumerate() {
         for (board_i, board) in boards.iter_mut().enumerate() {
+            // Skip playing if won
+            if winners.contains(&board_i) {
+                continue;
+            }
+
             board.play_draw(*draw);
 
             if draw_i >= 4 && board.is_winner() {
                 winner = board_i as i32;
-                break;
+                winners.insert(board_i);
+
+                if !until_all_win || winners.len() == board_count {
+                    break;
+                }
             }
         }
 
-        if winner >= 0 {
+        if winner >= 0 && (!until_all_win || winners.len() == board_count) {
             break;
         }
     }
@@ -130,10 +142,12 @@ mod tests {
     use super::{*, data::*};
 
     #[rstest]
-    #[case(TEST_DATA_1_DRAWS, TEST_DATA_1_BOARDS, 4512)]
-    #[case(TEST_DATA_2_DRAWS, TEST_DATA_2_BOARDS, 60368)]
-    fn calculate_power_consumption_test<T: AsRef<[u32]>, S: AsRef<[[[u32; 5]; 5]]>>(#[case] draws: T, #[case] boards: S, #[case] expected: u32) {
-        let result = play_bingo(draws.as_ref(), boards.as_ref());
+    #[case(TEST_DATA_1_DRAWS, TEST_DATA_1_BOARDS, false, 4512)]
+    #[case(TEST_DATA_2_DRAWS, TEST_DATA_2_BOARDS, false, 60368)]
+    #[case(TEST_DATA_1_DRAWS, TEST_DATA_1_BOARDS, true, 1924)]
+    #[case(TEST_DATA_2_DRAWS, TEST_DATA_2_BOARDS, true, 17435)]
+    fn play_bingo_test<T: AsRef<[u32]>, S: AsRef<[[[u32; 5]; 5]]>>(#[case] draws: T, #[case] boards: S, #[case] until_all_win: bool, #[case] expected: u32) {
+        let result = play_bingo(draws.as_ref(), boards.as_ref(), until_all_win);
         assert_eq!(expected, result);
     }
 }
