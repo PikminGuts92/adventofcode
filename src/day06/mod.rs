@@ -1,63 +1,30 @@
 #[cfg(test)] mod data;
 
-pub struct LanternFish {
-    pub timer: u32,
-}
-
-impl LanternFish {
-    pub fn new(timer: u32) -> LanternFish {
-        LanternFish {
-            timer,
-        }
-    }
-
-    pub fn spawn_offspring(&self) -> LanternFish {
-        LanternFish {
-            timer: 8
-        }
-    }
-
-    pub fn end_day(&mut self) {
-        self.timer = match self.timer {
-            0 => 6,
-            _ => self.timer - 1,
-        };
-    }
-
-    pub fn is_fertile(&self) -> bool {
-        self.timer.eq(&0)
-    }
-}
-
 pub fn simulate_population_growth(state: &[u32], mut days: u32) -> u64 {
-    let mut fishes = state
-        .iter()
-        .map(|s| LanternFish::new(*s))
-        .collect::<Vec<_>>();
+    let mut fish_counts = [0u64; 9];
+
+    for s in state {
+        fish_counts[*s as usize] += 1;
+    }
 
     while days > 0 {
-        let mut new_fishes = Vec::new();
+        let start_count = fish_counts[0];
 
-        for fish in fishes.iter_mut() {
-            // Spawn new fish if fertile
-            if fish.is_fertile() {
-                let offspring = fish.spawn_offspring();
-                new_fishes.push(offspring);
-            }
-
-            // Update day
-            fish.end_day();
+        // Update days
+        for i in 0..(fish_counts.len() - 1) {
+            fish_counts[i] = fish_counts[i + 1];
         }
+        fish_counts[6] += start_count;
 
-        // Update fishes
-        if !new_fishes.is_empty() {
-            fishes.append(&mut new_fishes);
-        }
+        // Spawn new fish
+        fish_counts[8] = start_count;
 
         days -= 1;
     }
 
-    fishes.len() as u64
+    fish_counts
+        .iter()
+        .sum()
 }
 
 #[cfg(test)]
@@ -70,8 +37,7 @@ mod tests {
     #[case(TEST_DATA_1, 80, 5934)]
     #[case(TEST_DATA_1, 256, 26984457539)]
     #[case(TEST_DATA_2, 80, 391888)]
-    //#[case(TEST_DATA_1, true, 12)]
-    //#[case(TEST_DATA_2, true, 19663)]
+    #[case(TEST_DATA_2, 256, 1754597645339)]
     pub fn simulate_population_growth_test<T: AsRef<[u32]>>(#[case] state: T, #[case] days: u32, #[case] expected: u64) {
         let result = simulate_population_growth(state.as_ref(), days);
         assert_eq!(expected, result);
