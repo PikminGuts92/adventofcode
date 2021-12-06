@@ -8,16 +8,11 @@ pub fn simulate_population_growth(state: &[u32], mut days: u32) -> u64 {
     }
 
     while days > 0 {
-        let start_count = fish_counts[0];
+        let new_fish_count = fish_counts[0];
 
-        // Update days
-        for i in 0..(fish_counts.len() - 1) {
-            fish_counts[i] = fish_counts[i + 1];
-        }
-        fish_counts[6] += start_count;
-
-        // Spawn new fish
-        fish_counts[8] = start_count;
+        // Update days + spawn new fish
+        fish_counts.rotate_left(1);
+        fish_counts[6] += new_fish_count;
 
         days -= 1;
     }
