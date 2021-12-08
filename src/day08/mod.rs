@@ -17,7 +17,48 @@ pub const DIGIT_9: &'static str = "aaaabbccddddgggg";     //         6
     ()
 }*/
 
-pub fn char_count(digit: &'static str) -> i32 {
+pub struct Pattern<'a> {
+    digit: &'a str,
+    char_count: i32,
+    hash: u8,
+}
+
+impl<'a> Pattern<'a> {
+    pub fn new(digit: &'a str) -> Pattern {
+        let mut hash = 0u8;
+
+        for c in digit.chars() {
+            let idx = (c as u8) - ('a' as u8);
+            hash |= 0b1 << idx;
+        }
+
+        let char_count = char_count(digit);
+
+        Pattern {
+            digit,
+            char_count,
+            hash
+        }
+    }
+
+    pub fn get_chars(&self) -> Vec<char> {
+        get_chars_from_hash(self.hash)
+    }
+}
+
+pub fn get_chars_from_hash(hash: u8) -> Vec<char> {
+    let mut chars = Vec::new();
+
+    for (i, c) in ('a'..'h').enumerate() {
+        if hash & (0b1 << i) != 0 {
+            chars.push(c);
+        }
+    }
+
+    chars
+}
+
+pub fn char_count(digit: &str) -> i32 {
     let mut counts = [0i32; 7];
 
     for c in digit.chars() {
@@ -29,6 +70,18 @@ pub fn char_count(digit: &'static str) -> i32 {
         .iter()
         .filter(|c| c > &&0)
         .count() as i32
+}
+
+pub fn char_count_from_hash(hash: u8) -> i32 {
+    let mut count = 0;
+
+    for i in 0..7 {
+        if hash & (0b1 << i) != 0 {
+            count += 1;
+        }
+    }
+
+    count
 }
 
 pub fn is_one(char_count: i32) -> bool {
@@ -93,9 +146,108 @@ pub fn segment_search_item((patterns, digits): &([&'static str; 10], [&'static s
         }
     }
 
-    println!("Done");
+    let pattern_objs = patterns
+        .map(|p| Pattern::new(p));
 
-    0
+    // Unique segment counts (givens)
+    let one_hash = pattern_objs[patterns_map[1].unwrap()].hash;
+    let four_hash = pattern_objs[patterns_map[4].unwrap()].hash;
+    let seven_hash = pattern_objs[patterns_map[7].unwrap()].hash;
+    let eight_hash = pattern_objs[patterns_map[8].unwrap()].hash;
+
+    /*let first_segment = one_hash ^ seven_hash;
+    let first_segment_char = *get_chars_from_hash(first_segment).first().unwrap();
+
+    println!("First char is {}", first_segment_char);*/
+
+    // 5 segments
+    let three_hash = pattern_objs
+        .iter()
+        .filter(|p| p.char_count == 5)
+        .map(|p| p.hash)
+        .reduce(|acc, h| acc & h)
+        .unwrap() | one_hash;
+
+    // 6 segments
+    let nine_hash = three_hash | four_hash;
+    let zero_hash = ((one_hash ^ four_hash) & three_hash) ^ eight_hash;
+    let six_hash = pattern_objs
+        .iter()
+        .filter(|p| p.char_count == 6
+            && p.hash != nine_hash
+            && p.hash != zero_hash)
+        .map(|p| p.hash)
+        .nth(0)
+        .unwrap();
+
+    // 5 segments (remaining)
+    let five_hash = pattern_objs
+        .iter()
+        .filter(|p| p.char_count == 5
+            && p.hash != three_hash
+            && char_count_from_hash(p.hash ^ six_hash) == 1)
+        .map(|p| p.hash)
+        .nth(0)
+        .unwrap();
+    let two_hash = pattern_objs
+        .iter()
+        .filter(|p| p.char_count == 5
+            && p.hash != three_hash
+            && p.hash != five_hash)
+        .map(|p| p.hash)
+        .nth(0)
+        .unwrap();
+
+    // Update patterns
+    for (i, p) in pattern_objs.iter().enumerate() {
+        let map_idx = match p.hash {
+            h if h == zero_hash => 0,
+            h if h == two_hash => 2,
+            h if h == three_hash => 3,
+            h if h == five_hash => 5,
+            h if h == six_hash => 6,
+            h if h == nine_hash => 9,
+            _ => continue
+        };
+
+        patterns_map[map_idx] = Some(i);
+    }
+
+    // 5 chars
+    // (2 & 3 & 5) | (1 || 7) == 3
+
+    // (3 | 4) == 9
+
+    // ((1 ^ 4) & 3) ^ 8 = 0
+
+    // (1 | 4 | 7) ^ 9 == 'gggg' slot
+
+    let hashes = [
+        zero_hash,
+        one_hash,
+        two_hash,
+        three_hash,
+        four_hash,
+        five_hash,
+        six_hash,
+        seven_hash,
+        eight_hash,
+        nine_hash
+    ].iter()
+        .enumerate()
+        .map(|(i, e)| (*e, i as i32))
+        .collect::<HashMap<_, _>>();
+
+    // Figure out digits
+    let mut number = 0;
+    for (i, d) in digits.iter().rev().enumerate() {
+        let hash = Pattern::new(d).hash;
+
+        let digit = hashes[&hash];
+        number += digit * (10i32.pow(i as u32));
+    }
+
+    number
 }
 
 pub fn segment_search(data: &[([&'static str; 10], [&'static str; 4])]) -> i32 {
@@ -130,7 +282,7 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_1_PARSED, 61229)]
-    #[case(TEST_DATA_2_PARSED, 0)]
+    #[case(TEST_DATA_2_PARSED, 1004688)]
     pub fn segment_search_test<T: AsRef<[([&'static str; 10], [&'static str; 4])]>>(#[case] data: T, #[case] expected: i32) {
         let result = segment_search(data.as_ref());
         assert_eq!(expected, result);
