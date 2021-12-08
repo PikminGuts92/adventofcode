@@ -1,3 +1,7 @@
+pub const TEST_DATA_0_PARSED: [([&'static str; 10], [&'static str; 4]); 1] = [
+    (["acedgfb", "cdfbe", "gcdfa", "fbcad", "dab", "cefabd", "cdfgeb", "eafb", "cagedb", "ab"], ["cdfeb", "fcadb", "cdfeb", "cdbaf"])
+];
+
 pub const TEST_DATA_1: [&'static str; 10] = [
     "be cfbegad cbdgef fgaecd cgeb fdcge agebfd fecdb fabcd edb | fdgacbe cefdb cefbgd gcbe",
     "edbfga begcd cbg gc gcadebf fbgde acbgfd abcde gfcbed gfec | fcgedb cgb dgebacf gc",
