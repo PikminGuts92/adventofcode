@@ -135,7 +135,7 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_1, 1134)]
-    #[case(TEST_DATA_2, 0)]
+    #[case(TEST_DATA_2, 1019700)]
     pub fn find_basins_test<T: AsRef<[&'static str]>>(#[case] data: T, #[case] expected: i64) {
         let result = find_basins(data.as_ref());
         assert_eq!(expected, result);
