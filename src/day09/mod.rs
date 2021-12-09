@@ -55,7 +55,7 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_1, 15)]
-    #[case(TEST_DATA_2, 0)]
+    #[case(TEST_DATA_2, 575)]
     pub fn find_heights_test<T: AsRef<[&'static str]>>(#[case] data: T, #[case] expected: i64) {
         let result = find_heights(data.as_ref());
         assert_eq!(expected, result);
