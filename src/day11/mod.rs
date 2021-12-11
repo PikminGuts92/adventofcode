@@ -61,9 +61,7 @@ pub fn get_adjacent_points((y, x): (usize, usize), y_size: usize, x_size: usize)
         .collect()
 }
 
-//pub fn process_octopus((y, x): (usize, usize), grid: )
-
-pub fn count_flashes(data: &[&str], steps: u32) -> i64 {
+pub fn count_flashes(data: &[&str], steps: Option<u32>) -> (i64, i64) {
     // Convert to octopuses
     let mut grid = data
         .iter()
@@ -78,9 +76,10 @@ pub fn count_flashes(data: &[&str], steps: u32) -> i64 {
         .and_then(|f| Some(f.len()))
         .unwrap_or_default();
 
+    let total_octopus_count = (y_size * x_size) as i64;
     let mut flash_count = 0;
 
-    for step in 0..steps {
+    for step in 0..steps.unwrap_or(u32::MAX) {
         // Reset charge states + increase levels
         grid
             .iter_mut()
@@ -89,6 +88,8 @@ pub fn count_flashes(data: &[&str], steps: u32) -> i64 {
                 o.reset_charge();
                 o.increase_level();
             });
+
+        let mut step_flash_count = 0;
 
         // Check charge levels and discharge if needed
         loop {
@@ -100,7 +101,7 @@ pub fn count_flashes(data: &[&str], steps: u32) -> i64 {
                         let octopus = &mut grid[y][x];
                         if octopus.can_flash() {
                             octopus.flash();
-                            flash_count += 1;
+                            step_flash_count += 1;
                             true
                         } else {
                             false
@@ -121,7 +122,7 @@ pub fn count_flashes(data: &[&str], steps: u32) -> i64 {
 
                             if octopus.can_flash() {
                                 octopus.flash();
-                                flash_count += 1;
+                                step_flash_count += 1;
 
                                 let mut more_ads = get_adjacent_points((ad_y, ad_x), y_size, x_size);
                                 adjacent.append(&mut more_ads);
@@ -136,9 +137,15 @@ pub fn count_flashes(data: &[&str], steps: u32) -> i64 {
                 break;
             }
         }
+
+        flash_count += step_flash_count;
+
+        if step_flash_count == total_octopus_count {
+            return (flash_count, (step + 1) as i64);
+        }
     }
 
-    flash_count
+    (flash_count, -1)
 }
 
 #[cfg(test)]
@@ -153,7 +160,15 @@ mod tests {
     #[case(TEST_DATA_1, 100, 1656)]
     #[case(TEST_DATA_2, 100, 1620)]
     pub fn count_flashes_test<T: AsRef<[&'static str]>>(#[case] data: T, #[case] steps: u32, #[case] expected: i64) {
-        let result = count_flashes(data.as_ref(), steps);
+        let (result, _) = count_flashes(data.as_ref(), Some(steps));
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_1, 195)]
+    #[case(TEST_DATA_2, 371)]
+    pub fn count_flashes_until_sync_test<T: AsRef<[&'static str]>>(#[case] data: T, #[case] expected: i64) {
+        let (_, result) = count_flashes(data.as_ref(), None);
         assert_eq!(expected, result);
     }
 }
