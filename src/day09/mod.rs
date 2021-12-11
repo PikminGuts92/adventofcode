@@ -1,6 +1,6 @@
 #[cfg(test)] mod data;
 
-use std::{collections::HashSet, ops::Add};
+use std::collections::HashSet;
 
 pub fn find_heights(data: &[&str]) -> i64 {
     let data = data
