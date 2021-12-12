@@ -24,7 +24,34 @@ pub fn path_contains_multiple_small_caves<'a>(path: &Vec<&'a str>) -> bool {
         .any(|v| v.gt(&1))
 }
 
-pub fn traverse_path<'a>(caves: &HashMap<&'a str, Vec<&'a str>>, mut path: Vec<&'a str>, node: &'a str) -> Vec<Vec<&'a str>> {
+pub fn path_contains_more_than_one_small_cave_twice<'a>(path: &Vec<&'a str>) -> bool {
+    let counts = path
+        .iter()
+        .filter(|p| p.ne(&&START)
+            && p.ne(&&END)
+            && p.chars().all(|c| c.is_lowercase()))
+        .fold(HashMap::new(), |mut acc, p| {
+            if let Some(count) = acc.get_mut(p) {
+                *count += 1;
+            } else {
+                acc.insert(p, 1);
+            }
+
+            acc
+        })
+        .into_values()
+        .collect::<Vec<_>>();
+
+    if counts.iter().any(|c| c.gt(&2)) {
+        return true;
+    } else if counts.iter().filter(|c| c.eq(&&2)).count().gt(&1) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+pub fn traverse_path<'a>(caves: &HashMap<&'a str, Vec<&'a str>>, mut path: Vec<&'a str>, node: &'a str, max_small: u32) -> Vec<Vec<&'a str>> {
     let mut paths = Vec::new();
     path.push(node);
 
@@ -32,7 +59,9 @@ pub fn traverse_path<'a>(caves: &HashMap<&'a str, Vec<&'a str>>, mut path: Vec<&
     if node.eq(END) {
         paths.push(path);
         return paths;
-    } else if path_contains_multiple_small_caves(&path) {
+    } else if max_small == 1 && path_contains_multiple_small_caves(&path) {
+        return paths;
+    } else if max_small == 2 && path_contains_more_than_one_small_cave_twice(&path) {
         return paths;
     }
 
@@ -46,14 +75,14 @@ pub fn traverse_path<'a>(caves: &HashMap<&'a str, Vec<&'a str>>, mut path: Vec<&
             continue;
         }
 
-        let mut branch_paths = traverse_path(caves, path.to_owned(), branch);
+        let mut branch_paths = traverse_path(caves, path.to_owned(), branch, max_small);
         paths.append(&mut branch_paths);
     }
 
     paths
 }
 
-pub fn find_paths<'a>(segments: &'a [&'a str]) -> Vec<Vec<&'a str>> {
+pub fn find_paths<'a>(segments: &'a [&'a str], max_small: u32) -> Vec<Vec<&'a str>> {
     let mut caves: HashMap<&str, Vec<&str>> = HashMap::new();
 
     for i in 0..segments.len() {
@@ -82,12 +111,12 @@ pub fn find_paths<'a>(segments: &'a [&'a str]) -> Vec<Vec<&'a str>> {
         }
     }
 
-    let paths = traverse_path(&caves, Vec::new(), START);
+    let paths = traverse_path(&caves, Vec::new(), START, max_small);
     paths
 }
 
-pub fn find_path_count_of_small_caves(segments: &[&str]) -> i64 {
-    let paths = find_paths(segments);
+pub fn find_path_count_of_small_caves(segments: &[&str], max_small: u32) -> i64 {
+    let paths = find_paths(segments, max_small);
 
     /*for path in paths.iter() {
         println!("{path:?}");
@@ -103,12 +132,16 @@ mod tests {
     use super::{*, data::*};
 
     #[rstest]
-    #[case(TEST_DATA_0_1, 10)]
-    #[case(TEST_DATA_0_2, 19)]
-    #[case(TEST_DATA_1, 226)]
-    #[case(TEST_DATA_2, 5756)]
-    pub fn find_path_count_of_small_caves_test<T: AsRef<[&'static str]>>(#[case] lines: T, #[case] expected: i64) {
-        let result = find_path_count_of_small_caves(lines.as_ref());
+    #[case(TEST_DATA_0_1, 1, 10)]
+    #[case(TEST_DATA_0_2, 1, 19)]
+    #[case(TEST_DATA_1, 1, 226)]
+    #[case(TEST_DATA_2, 1, 5756)]
+    #[case(TEST_DATA_0_1, 2, 36)]
+    #[case(TEST_DATA_0_2, 2, 103)]
+    #[case(TEST_DATA_1, 2, 3509)]
+    #[case(TEST_DATA_2, 2, 144603)]
+    pub fn find_path_count_of_small_caves_test<T: AsRef<[&'static str]>>(#[case] segments: T, #[case] max_small: u32, #[case] expected: i64) {
+        let result = find_path_count_of_small_caves(segments.as_ref(), max_small);
         assert_eq!(expected, result);
     }
 }
