@@ -1,5 +1,6 @@
 #[cfg(test)] mod data;
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -7,7 +8,7 @@ use std::sync::{Arc, Mutex};
 pub struct CavePath<'a, const N: usize> {
     pub pos: (usize, usize),
     pub actual_pos: (usize, usize),
-    pub risk: i64,
+    pub risk: i16,
     pub score: f32,
     pub cave: &'a [[u8; N]; N],
     pub scale: usize,
@@ -23,7 +24,7 @@ impl <'a, const N: usize> fmt::Debug for CavePath<'a, N> {
 }
 
 impl <'a, const N: usize> CavePath<'a, N> {
-    pub fn new(pos: (usize, usize), risk: i64, cave: &'a [[u8; N]; N], scale: usize) -> CavePath<'a, N> {
+    pub fn new(pos: (usize, usize), risk: i16, cave: &'a [[u8; N]; N], scale: usize) -> CavePath<'a, N> {
         let (y, x) = pos.to_owned();
 
         let acc_y = y % cave.len();
@@ -50,7 +51,7 @@ impl <'a, const N: usize> CavePath<'a, N> {
             && (x + 1) >= (self.cave[acc_y].len() * self.scale)
     }
 
-    pub fn get_risk(&self) -> i64 {
+    pub fn get_risk(&self) -> i16 {
         self.risk
     }
 
@@ -76,7 +77,7 @@ impl <'a, const N: usize> CavePath<'a, N> {
 
         // Move down
         if next_acc_y < self.cave.len() && y_scale < self.scale {
-            let pos_risk = (((((self.cave[next_acc_y][acc_x] as usize) + y_scale + x_scale) as i64) - 1) % 9) + 1;
+            let pos_risk = (((((self.cave[next_acc_y][acc_x] as usize) + y_scale + x_scale) as i16) - 1) % 9) + 1;
 
             Some(CavePath::new(pos, self.risk + pos_risk, self.cave, self.scale))
         } else {
@@ -101,7 +102,7 @@ impl <'a, const N: usize> CavePath<'a, N> {
 
         // Move right
         if next_acc_x < self.cave[acc_y].len() && x_scale < self.scale {
-            let pos_risk = (((((self.cave[acc_y][next_acc_x] as usize) + y_scale + x_scale) as i64) - 1) % 9) + 1;
+            let pos_risk = (((((self.cave[acc_y][next_acc_x] as usize) + y_scale + x_scale) as i16) - 1) % 9) + 1;
 
             Some(CavePath::new(pos, self.risk + pos_risk, self.cave, self.scale))
         } else {
@@ -162,7 +163,7 @@ impl <'a, const N: usize> CavePath<'a, N> {
     }
 }
 
-pub fn find_risk_level<const N: usize>(cave: &[[u8; N]; N], scale: usize) -> i64 {
+pub fn find_risk_level<const N: usize>(cave: &[[u8; N]; N], scale: usize) -> i16 {
     if cave.len() < 1 || cave[0].len() < 1 || scale < 1 {
         return 0;
     }
@@ -170,12 +171,16 @@ pub fn find_risk_level<const N: usize>(cave: &[[u8; N]; N], scale: usize) -> i64
     let root = CavePath::new((0, 0), 0, cave, scale);
     let mut paths = vec![root];
 
-    let mut optimal_risks = vec![vec![i64::MAX; N * scale]; N * scale];
+    // TODO: Use boxed array instead
+    let mut optimal_risks = vec![vec![i16::MAX; N * scale]; N * scale];
 
     while !paths.is_empty() {
         // Sort paths
-        //paths
-        //    .sort_by(|a, b| a.score.partial_cmp(&b.score).unwrap());
+        paths
+            .sort_by(|a, b| b.score.partial_cmp(&a.score).and_then(|o| match o {
+                Ordering::Equal => a.risk.partial_cmp(&b.risk),
+                _ => Some(o),
+            }).unwrap());
 
         let path = paths.remove(0);
         let curr_risk = path.get_risk();
@@ -193,9 +198,9 @@ pub fn find_risk_level<const N: usize>(cave: &[[u8; N]; N], scale: usize) -> i64
 
         if !path.is_end() {
             // Continue path search
-            let mut branches = path.get_next_paths();
-            branches
-                .sort_by(|a, b| b.risk.partial_cmp(&a.risk).unwrap());
+            let branches = path.get_next_paths();
+            //branches
+            //    .sort_by(|a, b| b.risk.partial_cmp(&a.risk).unwrap());
 
             //paths.append(&mut path.get_next_paths());
             for branch in branches {
@@ -217,7 +222,7 @@ mod tests {
     #[case(TEST_DATA_1, 1, 687)]
     #[case(TEST_DATA_0, 5, 315)]
     #[case(TEST_DATA_1, 5, 0)]
-    pub fn find_risk_level_test<const N: usize>(#[case] cave: [[u8; N]; N], #[case] scale: usize, #[case] expected: i64) {
+    pub fn find_risk_level_test<const N: usize>(#[case] cave: [[u8; N]; N], #[case] scale: usize, #[case] expected: i16) {
         let result = find_risk_level(&cave, scale);
         assert_eq!(expected, result);
     }
