@@ -100,6 +100,8 @@ mod tests {
     #[rstest]
     #[case(TEST_DATA_1_0, TEST_DATA_1_1, 10, 1588)]
     #[case(TEST_DATA_2_0, TEST_DATA_2_1, 10, 2068)]
+    #[case(TEST_DATA_1_0, TEST_DATA_1_1, 40, 2188189693529)]
+    #[case(TEST_DATA_2_0, TEST_DATA_2_1, 40, 0)]
     pub fn grow_polymer_get_number_test<T: AsRef<str>, S: AsRef<[(&'static str, &'static str)]>>(#[case] template: T, #[case] rules: S, #[case] steps: u32, #[case] expected: i64) {
         let result = grow_polymer_get_number(template.as_ref(), rules.as_ref(), steps);
         assert_eq!(expected, result);
