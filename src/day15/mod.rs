@@ -1,12 +1,13 @@
 #[cfg(test)] mod data;
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
 pub struct CavePath<'a, const N: usize> {
     pub pos: (usize, usize),
+    pub visited: HashSet<(usize, usize)>,
     pub actual_pos: (usize, usize),
     pub risk: i16,
     pub score: f32,
@@ -24,7 +25,7 @@ impl <'a, const N: usize> fmt::Debug for CavePath<'a, N> {
 }
 
 impl <'a, const N: usize> CavePath<'a, N> {
-    pub fn new(pos: (usize, usize), risk: i16, cave: &'a [[u8; N]; N], scale: usize) -> CavePath<'a, N> {
+    pub fn new(pos: (usize, usize), visited: HashSet<(usize, usize)>, risk: i16, cave: &'a [[u8; N]; N], scale: usize) -> CavePath<'a, N> {
         let (y, x) = pos;
 
         let acc_y = y % cave.len();
@@ -32,6 +33,7 @@ impl <'a, const N: usize> CavePath<'a, N> {
 
         let mut cave = CavePath {
             pos,
+            visited,
             actual_pos,
             risk,
             score: 0.0,
@@ -62,6 +64,35 @@ impl <'a, const N: usize> CavePath<'a, N> {
         ((y / self.cave.len()), (x / self.cave[acc_y].len()))
     }
 
+    pub fn get_up_path(&self) -> Option<CavePath<'a, N>> {
+        let (acc_y, acc_x) = self.actual_pos;
+        let (y, x) = self.pos;
+
+        if acc_y == 0 {
+            return None;
+        }
+
+        let pos =  (y - 1, x);
+        let (y_scale, x_scale) = self.get_pos_scale(&pos);
+
+        let next_acc_y = if acc_y - 1 == self.cave.len() {
+            0
+        } else {
+            acc_y - 1
+        };
+
+        // Move down
+        if next_acc_y < self.cave.len() && y_scale < self.scale {
+            let pos_risk = (((((self.cave[next_acc_y][acc_x] as usize) + y_scale + x_scale) as i16) - 1) % 9) + 1;
+            let mut new_visited = self.visited.to_owned();
+            new_visited.insert(self.pos);
+
+            Some(CavePath::new(pos, new_visited, self.risk + pos_risk, self.cave, self.scale))
+        } else {
+            None
+        }
+    }
+
     pub fn get_down_path(&self) -> Option<CavePath<'a, N>> {
         let (acc_y, acc_x) = self.actual_pos;
         let (y, x) = self.pos;
@@ -78,8 +109,39 @@ impl <'a, const N: usize> CavePath<'a, N> {
         // Move down
         if next_acc_y < self.cave.len() && y_scale < self.scale {
             let pos_risk = (((((self.cave[next_acc_y][acc_x] as usize) + y_scale + x_scale) as i16) - 1) % 9) + 1;
+            let mut new_visited = self.visited.to_owned();
+            new_visited.insert(self.pos);
 
-            Some(CavePath::new(pos, self.risk + pos_risk, self.cave, self.scale))
+            Some(CavePath::new(pos, new_visited, self.risk + pos_risk, self.cave, self.scale))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_left_path(&self) -> Option<CavePath<'a, N>> {
+        let (acc_y, acc_x) = self.actual_pos;
+        let (y, x) = self.pos;
+
+        if acc_x == 0 {
+            return None;
+        }
+
+        let pos =  (y, x - 1);
+        let (y_scale, x_scale) = self.get_pos_scale(&pos);
+
+        let next_acc_x = if acc_x - 1 == self.cave[acc_y].len() {
+            0
+        } else {
+            acc_x - 1
+        };
+
+        // Move right
+        if next_acc_x < self.cave[acc_y].len() && x_scale < self.scale {
+            let pos_risk = (((((self.cave[acc_y][next_acc_x] as usize) + y_scale + x_scale) as i16) - 1) % 9) + 1;
+            let mut new_visited = self.visited.to_owned();
+            new_visited.insert(self.pos);
+
+            Some(CavePath::new(pos, new_visited, self.risk + pos_risk, self.cave, self.scale))
         } else {
             None
         }
@@ -98,13 +160,13 @@ impl <'a, const N: usize> CavePath<'a, N> {
             acc_x + 1
         };
 
-        //println!("({}, {})", &y_scale, &x_scale);
-
         // Move right
         if next_acc_x < self.cave[acc_y].len() && x_scale < self.scale {
             let pos_risk = (((((self.cave[acc_y][next_acc_x] as usize) + y_scale + x_scale) as i16) - 1) % 9) + 1;
+            let mut new_visited = self.visited.to_owned();
+            new_visited.insert(self.pos);
 
-            Some(CavePath::new(pos, self.risk + pos_risk, self.cave, self.scale))
+            Some(CavePath::new(pos, new_visited, self.risk + pos_risk, self.cave, self.scale))
         } else {
             None
         }
@@ -113,13 +175,24 @@ impl <'a, const N: usize> CavePath<'a, N> {
     pub fn get_next_paths(&self) -> Vec<CavePath<'a, N>> {
         let mut paths = Vec::new();
 
+        if let Some(up_path) = self.get_up_path() {
+            paths.push(up_path);
+        }
+
         if let Some(down_path) = self.get_down_path() {
             paths.push(down_path);
+        }
+
+        if let Some(left_path) = self.get_left_path() {
+            paths.push(left_path);
         }
 
         if let Some(right_path) = self.get_right_path() {
             paths.push(right_path);
         }
+
+        // Filter out visited
+        paths.retain(|p| !self.visited.contains(&p.pos));
 
         paths
     }
@@ -168,7 +241,7 @@ pub fn find_risk_level<const N: usize>(cave: &[[u8; N]; N], scale: usize) -> i16
         return 0;
     }
 
-    let root = CavePath::new((0, 0), 0, cave, scale);
+    let root = CavePath::new((0, 0), HashSet::new(), 0, cave, scale);
     let mut paths = vec![root];
 
     // TODO: Use boxed array instead
@@ -221,12 +294,13 @@ mod tests {
     #[case(TEST_DATA_0, 1, 40)]
     #[case(TEST_DATA_1, 1, 687)]
     #[case(TEST_DATA_0, 5, 315)]
-    #[case(TEST_DATA_1, 5, 0)]
+    #[case(TEST_DATA_1, 5, 2957)]
     pub fn find_risk_level_test<const N: usize>(#[case] cave: [[u8; N]; N], #[case] scale: usize, #[case] expected: i16) {
         let result = find_risk_level(&cave, scale);
         assert_eq!(expected, result);
     }
 
+    /* You can traverse up/left too
     #[rstest]
     #[case((0, 0), 0, 1, [(1, 0), (0, 1)], [4, 2])]
     #[case((0, 0), 5, 1, [(1, 0), (0, 1)], [9, 7])]
@@ -255,7 +329,7 @@ mod tests {
          // [8, 9, 1],    [9, 1, 6],
         ];
 
-        let path = CavePath::new(pos, init_risk, &cave, scale);
+        let path = CavePath::new(pos, HashSet::new(), init_risk, &cave, scale);
         let next_paths = path.get_next_paths();
 
         let next_path_positions = next_paths
@@ -270,7 +344,7 @@ mod tests {
 
         assert_eq!(expected_next_path_positions.as_ref(), next_path_positions.as_slice());
         assert_eq!(expected_next_path_risks.as_ref(), next_path_risks.as_slice());
-    }
+    }*/
 
     #[rstest]
     #[case((0, 0), 1, false)]
@@ -292,7 +366,7 @@ mod tests {
          // [8, 9, 1],    [9, 1, 6],
         ];
 
-        let path = CavePath::new(pos, 0, &cave, scale);
+        let path = CavePath::new(pos, HashSet::new(), 0, &cave, scale);
         let result = path.is_end();
 
         assert_eq!(expected, result);
@@ -318,7 +392,7 @@ mod tests {
          // [8, 9, 1],    [9, 1, 6],
         ];
 
-        let path = CavePath::new(pos, 0, &cave, scale);
+        let path = CavePath::new(pos, HashSet::new(), 0, &cave, scale);
         let result = path.actual_pos;
 
         assert_eq!(expected, result);
