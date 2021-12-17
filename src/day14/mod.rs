@@ -10,17 +10,23 @@ pub fn grow_polymer(template: &str, rules: &[(&str, &str)], mut steps: u32) -> S
 
         // Find sequence + track insert replacements
         for (seq, rep) in rules.iter() {
-            let mut instances = new_template
-                .match_indices(seq)
-                .map(|(i, _)| (i + 1, rep))
-                .collect::<Vec<_>>();
+            let mut instances = Vec::new();
+
+            for j in 1..new_template.len() {
+                let i = j - 1;
+
+                let a = new_template.get(i..(i + 1)).unwrap();
+                let b = new_template.get(j..(j + 1)).unwrap();
+
+                if seq[0..1].eq(a) && seq[1..2].eq(b) {
+                    instances.push((j, rep));
+                }
+            }
 
             if !instances.is_empty() {
                 inserts.append(&mut instances);
             }
         }
-
-        // inserts.sort_by(|(a, _), (b, _)| a.cmp(b));
 
         let inserts_map = inserts
             .into_iter()
@@ -93,7 +99,7 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_1_0, TEST_DATA_1_1, 10, 1588)]
-    #[case(TEST_DATA_2_0, TEST_DATA_2_1, 10, 0)]
+    #[case(TEST_DATA_2_0, TEST_DATA_2_1, 10, 2068)]
     pub fn grow_polymer_get_number_test<T: AsRef<str>, S: AsRef<[(&'static str, &'static str)]>>(#[case] template: T, #[case] rules: S, #[case] steps: u32, #[case] expected: i64) {
         let result = grow_polymer_get_number(template.as_ref(), rules.as_ref(), steps);
         assert_eq!(expected, result);
