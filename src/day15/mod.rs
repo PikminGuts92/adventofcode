@@ -25,7 +25,7 @@ impl <'a, const N: usize> fmt::Debug for CavePath<'a, N> {
 
 impl <'a, const N: usize> CavePath<'a, N> {
     pub fn new(pos: (usize, usize), risk: i16, cave: &'a [[u8; N]; N], scale: usize) -> CavePath<'a, N> {
-        let (y, x) = pos.to_owned();
+        let (y, x) = pos;
 
         let acc_y = y % cave.len();
         let actual_pos = (acc_y, x % cave[acc_y].len());
@@ -224,6 +224,97 @@ mod tests {
     #[case(TEST_DATA_1, 5, 0)]
     pub fn find_risk_level_test<const N: usize>(#[case] cave: [[u8; N]; N], #[case] scale: usize, #[case] expected: i16) {
         let result = find_risk_level(&cave, scale);
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case((0, 0), 0, 1, [(1, 0), (0, 1)], [4, 2])]
+    #[case((0, 2), 0, 1, [(1, 2)], [6])]
+    #[case((0, 2), 0, 2, [(1, 2), (0, 3)], [6, 2])]
+    #[case((0, 5), 0, 2, [(1, 5)], [7])]
+    #[case((2, 0), 0, 1, [(2, 1)], [8])]
+    #[case((2, 0), 0, 2, [(3, 0), (2, 1)], [2, 8])]
+    #[case((5, 0), 0, 2, [(5, 1)], [9])]
+    #[case((2, 2), 0, 1, [], [])]
+    #[case((2, 2), 0, 2, [(3, 2), (2, 3)], [4, 8])]
+    #[case((2, 2), 200, 2, [(3, 2), (2, 3)], [204, 208])]
+    #[case((5, 5), 0, 2, [], [])]
+    pub fn cave_path_get_paths_test<T: AsRef<[(usize, usize)]>, S: AsRef<[i16]>>(#[case] pos: (usize, usize), #[case] init_risk: i16, #[case] scale: usize, #[case] expected_next_path_positions: T, #[case] expected_next_path_risks: S) {
+        let cave = [
+            [1, 2, 3], // [2, 3, 4],
+            [4, 5, 6], // [5, 6, 7],
+            [7, 8, 9], // [8, 9, 1],
+         // [2, 3, 4],    [3, 4, 5],
+         // [5, 6, 7],    [6, 7, 8],
+         // [8, 9, 1],    [9, 1, 6],
+        ];
+
+        let path = CavePath::new(pos, init_risk, &cave, scale);
+        let next_paths = path.get_next_paths();
+
+        let next_path_positions = next_paths
+            .iter()
+            .map(|p| p.pos)
+            .collect::<Vec<_>>();
+
+        let next_path_risks = next_paths
+            .iter()
+            .map(|p| p.risk)
+            .collect::<Vec<_>>();
+
+        assert_eq!(expected_next_path_positions.as_ref(), next_path_positions.as_slice());
+        assert_eq!(expected_next_path_risks.as_ref(), next_path_risks.as_slice());
+    }
+
+    #[rstest]
+    #[case((0, 0), 1, false)]
+    #[case((0, 2), 1, false)]
+    #[case((2, 0), 1, false)]
+    #[case((2, 2), 1, true)]
+    #[case((2, 2), 2, false)]
+    #[case((0, 0), 2, false)]
+    #[case((0, 5), 2, false)]
+    #[case((5, 0), 2, false)]
+    #[case((5, 5), 2, true)]
+    pub fn cave_path_is_end_test(#[case] pos: (usize, usize), #[case] scale: usize, #[case] expected: bool) {
+        let cave = [
+            [1, 2, 3], // [2, 3, 4],
+            [4, 5, 6], // [5, 6, 7],
+            [7, 8, 9], // [8, 9, 1],
+         // [2, 3, 4],    [3, 4, 5],
+         // [5, 6, 7],    [6, 7, 8],
+         // [8, 9, 1],    [9, 1, 6],
+        ];
+
+        let path = CavePath::new(pos, 0, &cave, scale);
+        let result = path.is_end();
+
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case((0, 0), 1, (0, 0))]
+    #[case((0, 2), 1, (0, 2))]
+    #[case((2, 0), 1, (2, 0))]
+    #[case((2, 2), 1, (2, 2))]
+    #[case((2, 2), 2, (2, 2))]
+    #[case((0, 0), 2, (0, 0))]
+    #[case((0, 5), 2, (0, 2))]
+    #[case((5, 0), 2, (2, 0))]
+    #[case((5, 5), 2, (2, 2))]
+    pub fn cave_path_actual_pos_test(#[case] pos: (usize, usize), #[case] scale: usize, #[case] expected: (usize, usize)) {
+        let cave = [
+            [1, 2, 3], // [2, 3, 4],
+            [4, 5, 6], // [5, 6, 7],
+            [7, 8, 9], // [8, 9, 1],
+         // [2, 3, 4],    [3, 4, 5],
+         // [5, 6, 7],    [6, 7, 8],
+         // [8, 9, 1],    [9, 1, 6],
+        ];
+
+        let path = CavePath::new(pos, 0, &cave, scale);
+        let result = path.actual_pos;
+
         assert_eq!(expected, result);
     }
 }
