@@ -1,7 +1,5 @@
 #[cfg(test)] mod data;
 
-use std::collections::HashSet;
-
 pub struct Octopus {
     pub energy: u32,
     pub discharged: bool,

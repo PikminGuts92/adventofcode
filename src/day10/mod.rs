@@ -1,7 +1,5 @@
 #[cfg(test)] mod data;
 
-use std::collections::HashMap;
-
 pub fn find_invalid_chars(chars: &Vec<char>, i: usize, open_stack: &mut Vec<char>, invalid: &mut Vec<char>) -> bool {
     if i >= chars.len() {
         return open_stack.is_empty();

@@ -2,23 +2,9 @@
 
 use std::collections::HashMap;
 
-pub const DIGIT_0: &'static str = "aaaabbcceeffgggg";     //         6
-pub const DIGIT_1: &'static str = "ccff";                 // 2
-pub const DIGIT_2: &'static str = "aaaaccddddeegggg";     //       5
-pub const DIGIT_3: &'static str = "aaaaccddddffgggg";     //       5
-pub const DIGIT_4: &'static str = "bbccddddff";           //     4
-pub const DIGIT_5: &'static str = "aaaabbddddffgggg";     //       5
-pub const DIGIT_6: &'static str = "aaaabbddddeeffgggg";   //         6
-pub const DIGIT_7: &'static str = "aaaaccff";             //   3
-pub const DIGIT_8: &'static str = "aaaabbccddddeeffgggg"; //           7
-pub const DIGIT_9: &'static str = "aaaabbccddddgggg";     //         6
-
-/*pub fn parse_segment(segment: &str) -> ([&str; 10], [&str; 4]) {
-    ()
-}*/
 
 pub struct Pattern<'a> {
-    digit: &'a str,
+    _digit: &'a str,
     char_count: i32,
     hash: u8,
 }
@@ -35,7 +21,7 @@ impl<'a> Pattern<'a> {
         let char_count = char_count(digit);
 
         Pattern {
-            digit,
+            _digit: digit,
             char_count,
             hash
         }
@@ -263,26 +249,26 @@ mod tests {
     use super::{*, data::*};
 
     #[rstest]
-    #[case(TEST_DATA_1_PARSED, 26)]
-    #[case(TEST_DATA_2_PARSED, 392)]
+    #[case(TEST_DATA_1, 26)]
+    #[case(TEST_DATA_2, 392)]
     pub fn segment_search_find_1478_test<T: AsRef<[([&'static str; 10], [&'static str; 4])]>>(#[case] data: T, #[case] expected: i32) {
         let result = segment_search_find_1478(data.as_ref());
         assert_eq!(expected, result);
     }
 
     #[rstest]
-    #[case(TEST_DATA_0_PARSED, 0, 5353)]
-    #[case(TEST_DATA_1_PARSED, 0, 8394)]
-    #[case(TEST_DATA_1_PARSED, 1, 9781)]
-    #[case(TEST_DATA_1_PARSED, 2, 1197)]
+    #[case(TEST_DATA_0, 0, 5353)]
+    #[case(TEST_DATA_1, 0, 8394)]
+    #[case(TEST_DATA_1, 1, 9781)]
+    #[case(TEST_DATA_1, 2, 1197)]
     pub fn segment_search_item_test<T: AsRef<[([&'static str; 10], [&'static str; 4])]>>(#[case] data: T, #[case] i: usize, #[case] expected: i32) {
         let result = segment_search_item(&data.as_ref()[i]);
         assert_eq!(expected, result);
     }
 
     #[rstest]
-    #[case(TEST_DATA_1_PARSED, 61229)]
-    #[case(TEST_DATA_2_PARSED, 1004688)]
+    #[case(TEST_DATA_1, 61229)]
+    #[case(TEST_DATA_2, 1004688)]
     pub fn segment_search_test<T: AsRef<[([&'static str; 10], [&'static str; 4])]>>(#[case] data: T, #[case] expected: i32) {
         let result = segment_search(data.as_ref());
         assert_eq!(expected, result);

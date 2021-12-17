@@ -3,7 +3,6 @@
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt;
-use std::sync::{Arc, Mutex};
 
 pub struct CavePath<'a, const N: usize> {
     pub pos: (usize, usize),

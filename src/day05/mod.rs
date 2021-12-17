@@ -36,7 +36,7 @@ pub fn is_diagonal_45((x1, y1): &(u32, u32), (x2, y2): &(u32, u32)) -> bool {
     slope.abs() == 1
 }
 
-pub fn create_line_vertical((x1, y1): &(u32, u32), (x2, y2): &(u32, u32)) -> Vec<(u32, u32)> {
+pub fn create_line_vertical((x1, y1): &(u32, u32), (_x2, y2): &(u32, u32)) -> Vec<(u32, u32)> {
     let (start, end) = if y1 < y2 { (y1, y2) } else { (y2, y1) };
 
     let mut points = Vec::new();
@@ -48,7 +48,7 @@ pub fn create_line_vertical((x1, y1): &(u32, u32), (x2, y2): &(u32, u32)) -> Vec
     points
 }
 
-pub fn create_line_horizontal((x1, y1): &(u32, u32), (x2, y2): &(u32, u32)) -> Vec<(u32, u32)> {
+pub fn create_line_horizontal((x1, y1): &(u32, u32), (x2, _y2): &(u32, u32)) -> Vec<(u32, u32)> {
     let (start, end) = if x1 < x2 { (x1, x2) } else { (x2, x1) };
 
     let mut points = Vec::new();
@@ -62,7 +62,7 @@ pub fn create_line_horizontal((x1, y1): &(u32, u32), (x2, y2): &(u32, u32)) -> V
 
 pub fn create_line_diagonal_45((x1, y1): &(u32, u32), (x2, y2): &(u32, u32)) -> Vec<(u32, u32)> {
     let slope = (*y2 as i32 - *y1 as i32) / (*x2 as i32 - *x1 as i32);
-    let ((start_x, start_y), (end_x, end_y)) = if x1 < x2 { ((x1, y1), (x2, y2)) } else { ((x2, y2), (x1, y1)) };
+    let ((start_x, start_y), (end_x, _end_y)) = if x1 < x2 { ((x1, y1), (x2, y2)) } else { ((x2, y2), (x1, y1)) };
 
     let mut points = Vec::new();
     let mut y = *start_y;
