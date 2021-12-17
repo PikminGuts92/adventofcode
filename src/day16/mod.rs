@@ -6,6 +6,11 @@ use std::ops::{BitOrAssign, ShlAssign};
 
 }*/
 
+const VERSION_LENGTH: u8 = 3;
+const TYPE_LENGTH: u8 = 3;
+
+type NUMBER = i64;
+
 pub struct BitDecoder {
     data: Vec<char>,
     data_index: usize,
@@ -75,10 +80,150 @@ impl BitDecoder {
     }
 }
 
-pub fn read_packet(reader: &mut BitDecoder, packets: &mut Vec<u32>) {
-    const VERSION_LENGTH: u8 = 3;
-    const TYPE_LENGTH: u8 = 3;
+pub enum Packet {
+    /* 0 */ Sum(Vec<Packet>),
+    /* 1 */ Product(Vec<Packet>),
+    /* 2 */ Minimum(Vec<Packet>),
+    /* 3 */ Maximum(Vec<Packet>),
 
+    /* 4 */ Literal(NUMBER),
+
+    // All have exactly two sub packets
+    /* 5 */ GreaterThan(Vec<Packet>),
+    /* 6 */ LessThan(Vec<Packet>),
+    /* 7 */ Equal(Vec<Packet>),
+}
+
+impl Packet {
+    pub fn evalulate(&self) -> NUMBER {
+        match self {
+            Packet::Sum(nums) => nums
+                .iter()
+                .map(|n| n.evalulate())
+                .sum(),
+            Packet::Product(nums) => nums
+                .iter()
+                .map(|n| n.evalulate())
+                .product(),
+            Packet::Minimum(nums) => {
+                let mut nums = nums
+                    .iter()
+                    .map(|n| n.evalulate())
+                    .collect::<Vec<_>>();
+
+                nums.sort();
+
+                nums
+                    .first()
+                    .map(|n| *n)
+                    .unwrap_or_default()
+            },
+            Packet::Maximum(nums) => {
+                let mut nums = nums
+                    .iter()
+                    .map(|n| n.evalulate())
+                    .collect::<Vec<_>>();
+
+                nums.sort();
+
+                nums
+                    .last()
+                    .map(|n| *n)
+                    .unwrap_or_default()
+            },
+            Packet::Literal(num) => *num,
+            Packet::GreaterThan(nums) => {
+                let a = nums[0].evalulate();
+                let b = nums[1].evalulate();
+
+                if a.gt(&b) {
+                    1
+                } else {
+                    0
+                }
+            }
+            Packet::LessThan(nums) => {
+                let a = nums[0].evalulate();
+                let b = nums[1].evalulate();
+
+                if a.lt(&b) {
+                    1
+                } else {
+                    0
+                }
+            }
+            Packet::Equal(nums) => {
+                let a = nums[0].evalulate();
+                let b = nums[1].evalulate();
+
+                if a.eq(&b) {
+                    1
+                } else {
+                    0
+                }
+            }
+        }
+    }
+
+    pub fn from_stream(reader: &mut BitDecoder) -> Packet {
+        let _packet_version: u32 = reader.read(VERSION_LENGTH);
+        let packet_type: u32 = reader.read(TYPE_LENGTH);
+
+        if packet_type.eq(&4) {
+            // Literal
+            let mut value = 0i64;
+    
+            loop {
+                let terminate = reader.read::<u8>(1) == 0;
+
+                value <<= 4;
+                value |= reader.read::<i64>(4);
+
+                if terminate {
+                    break;
+                }
+            }
+
+            Packet::Literal(value)
+        } else {
+            // Operator
+            let len_type: u8 = reader.read(1);
+            let mut sub_packets = Vec::new();
+    
+            if len_type.eq(&0) {
+                // Total length of sub packets
+                let bit_count: u32 = reader.read(15);
+                let end_pos = reader.get_pos() + (bit_count as usize);
+
+                while reader.get_pos().lt(&end_pos) {
+                    sub_packets.push(Packet::from_stream(reader));
+                }
+            } else {
+                // Sub packet count
+                let packet_count: u32 = reader.read(11);
+                let mut count = 0;
+
+                while count.lt(&packet_count) {
+                    sub_packets.push(Packet::from_stream(reader));
+                    count += 1;
+                }
+            }
+
+            match packet_type {
+                0 => Packet::Sum(sub_packets),
+                1 => Packet::Product(sub_packets),
+                2 => Packet::Minimum(sub_packets),
+                3 => Packet::Maximum(sub_packets),
+                5 => Packet::GreaterThan(sub_packets),
+                6 => Packet::LessThan(sub_packets),
+                7 => Packet::Equal(sub_packets),
+                _ => panic!("\"{}\" not supported!", &packet_type)
+            }
+        }
+    }
+}
+
+pub fn read_packet_versions(reader: &mut BitDecoder, packets: &mut Vec<u32>) {
     let packet_version: u32 = reader.read(VERSION_LENGTH);
     let packet_type: u32 = reader.read(TYPE_LENGTH);
 
@@ -119,7 +264,7 @@ pub fn read_packet(reader: &mut BitDecoder, packets: &mut Vec<u32>) {
             let end_pos = reader.get_pos() + (bit_count as usize);
 
             while reader.get_pos().lt(&end_pos) {
-                read_packet(reader, packets);
+                read_packet_versions(reader, packets);
             }
         } else {
             // Sub packet count
@@ -127,7 +272,7 @@ pub fn read_packet(reader: &mut BitDecoder, packets: &mut Vec<u32>) {
             let mut count = 0;
 
             while count.lt(&packet_count) {
-                read_packet(reader, packets);
+                read_packet_versions(reader, packets);
                 count += 1;
             }
         }
@@ -138,9 +283,16 @@ pub fn decode_packet_sum(stream: &str) -> u32 {
     let mut reader = BitDecoder::new(stream);
     let mut packets = Vec::new();
 
-    read_packet(&mut reader, &mut packets);
+    read_packet_versions(&mut reader, &mut packets);
 
     packets.iter().sum()
+}
+
+pub fn read_and_evaluate_packet(stream: &str) -> NUMBER {
+    let mut reader = BitDecoder::new(stream);
+
+    let packet = Packet::from_stream(&mut reader);
+    packet.evalulate()
 }
 
 #[cfg(test)]
@@ -155,6 +307,21 @@ mod tests {
     #[case(TEST_DATA_2, 891)]
     pub fn decode_packet_sum_test(#[case] stream: &'static str, #[case] expected: u32) {
         let result = decode_packet_sum(stream);
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case("C200B40A82", 3)]
+    #[case("04005AC33890", 54)]
+    #[case("880086C3E88112", 7)]
+    #[case("CE00C43D881120", 9)]
+    #[case("D8005AC2A8F0", 1)]
+    #[case("F600BC2D8F", 0)]
+    #[case("9C005AC2F8F0", 0)]
+    #[case("9C0141080250320F1802104A08", 1)]
+    #[case(TEST_DATA_2, 673042777597)]
+    pub fn read_and_evaluate_packet_test(#[case] stream: &'static str, #[case] expected: i64) {
+        let result = read_and_evaluate_packet(stream);
         assert_eq!(expected, result);
     }
 }
