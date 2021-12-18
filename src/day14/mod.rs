@@ -1,6 +1,6 @@
 #[cfg(test)] mod data;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 const MAX_CHARS: usize = 22; // 'A' -> 'V'
 
