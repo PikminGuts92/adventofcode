@@ -1,9 +1,17 @@
 #[cfg(test)] mod data;
 
 use std::collections::HashMap;
+use std::fmt;
+use std::ops::Add;
 use std::str::Chars;
 
-#[derive(Debug)]
+pub enum ReduceAction {
+    Explode(i64, i64, i64),
+    ExplodeL(i64, i64),
+    ExplodeR(i64, i64)
+}
+
+//#[derive(Debug)]
 pub enum SnailFish {
     Literal(i64),
     Pair(Box<SnailFish>, Box<SnailFish>),
@@ -14,19 +22,165 @@ impl SnailFish {
         let mut chars = data.chars();
         parse_from_str(&mut chars)
     }
-    
+
     pub fn calc_magnitude(&self) -> i64 {
         match self {
-            SnailFish::Literal(v) => *v,
+            SnailFish::Literal(n) => *n,
             SnailFish::Pair(a, b)
                 => (a.calc_magnitude() * 3) + (b.calc_magnitude() * 2)
         }
     }
 
-    pub fn is_pair(&self) -> bool {
+    pub fn is_literal(&self) -> bool {
         match self {
-            SnailFish::Literal(_) => false,
-            SnailFish::Pair(_, _) => true,
+            SnailFish::Literal(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_pair(&self) -> bool {
+        !self.is_literal()
+    }
+
+    pub fn is_pair_with_literals(&self) -> bool {
+        match self {
+            SnailFish::Pair(a, b)
+                => a.is_literal() && b.is_literal(),
+            _ => false,
+        }
+    }
+
+    /*pub fn reduce_root(&mut self) -> Option<ReduceAction> {
+        self.reduce(0)
+    }*/
+
+    pub fn reduce(&mut self, depth: i64) -> Option<ReduceAction> {
+        if self.is_reduced(depth) {
+            return None;
+        }
+
+        // First split, then explode
+
+        match self {
+            SnailFish::Literal(n) => {
+                if depth.ge(&10) {
+                    // Split into pair
+                    let l = *n / 2;
+                    let r = *n - l;
+
+                    *self = SnailFish::Pair(
+                        Box::new(SnailFish::Literal(l)),
+                        Box::new(SnailFish::Literal(r)),
+                    );
+
+                    // Check if should be reduced again
+                    self.reduce(depth)?;
+                }
+            },
+            SnailFish::Pair(a, b) => {
+                // Reduce left
+                while let Some(a_action) = a.reduce(depth + 1) {
+                    if depth.ge(&4) {
+                        // Propagate action up
+                        return Some(a_action);
+                    }
+
+                    match a_action {
+                        ReduceAction::Explode(d, l, r) => {
+                            let mut a_consumed = false;
+                            let mut b_consumed = false;
+
+                            if d.ne(&(depth + 1)) && a.is_literal() {
+                                // Consume action and update a
+                                *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                a_consumed = true;
+                            }
+
+                            if b.is_literal() {
+                                // Consume action and update b
+                                *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                b_consumed = true;
+                            }
+
+                            let new_action = match (a_consumed, b_consumed) {
+                                (false, false) => Some(ReduceAction::Explode(d, l, r)),
+                                (true, false) => Some(ReduceAction::ExplodeR(d, r)),
+                                (false, true) => Some(ReduceAction::ExplodeL(d, l)),
+                                _ => None
+                            };
+
+                            // Propagate action up
+                            if new_action.is_some() {
+                                return new_action;
+                            }
+                        }
+                        ReduceAction::ExplodeL(d, l) => {
+                            if a.is_literal() {
+                                // Consume action and update a
+                                *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                            }
+                        }
+                        ReduceAction::ExplodeR(d, r) => {
+                            if b.is_literal() {
+                                // Consume action and update b
+                                *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                            }
+                        }
+                    }
+                }
+
+                if depth.ge(&4) {
+                    // Check left
+                    /*while !a.is_reduced(depth + 1) {
+                        match a.reduce(depth + 1) {
+                            Some(ReduceAction::Explode(l, r)) =>
+                        }
+                    }*/
+
+                    // Check right
+
+                    // Explode pair if two literals
+
+                    let action = match (a.as_ref(), b.as_ref()) {
+                        (SnailFish::Literal(a), SnailFish::Literal(b)) => Some(ReduceAction::Explode(depth ,*a, *b)),
+                        _ => None,
+                    };
+
+                    // Propagate action up
+                    if action.is_some() {
+                        *self = SnailFish::Literal(0);
+
+                        return action;
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn is_reduced(&self, depth: i64) -> bool {
+        match self {
+            SnailFish::Literal(n) => n.lt(&10),
+            SnailFish::Pair(a, b)
+                => depth.lt(&4) && a.is_reduced(depth + 1) && b.is_reduced(depth + 1),
+        }
+    }
+}
+
+impl Add for SnailFish {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::Pair(Box::new(self), Box::new(rhs))
+    }
+}
+
+impl fmt::Display for SnailFish {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SnailFish::Literal(n) => write!(f, "{n}"),
+            SnailFish::Pair(a, b) => write!(f, "[{a},{b}]")
         }
     }
 }
@@ -91,6 +245,14 @@ pub fn find_magnitude_of_snailfish(data: &[&'static str]) -> i64 {
     // Literal - Just its value
 
     // Parse raw data
+    let fish = data
+        .iter()
+        .map(|d| SnailFish::from_str(d))
+        .collect::<Vec<_>>();
+
+    for f in fish.iter() {
+        println!("{f}");
+    }
 
     0
 }
@@ -133,5 +295,14 @@ mod tests {
         let fish = SnailFish::from_str(data);
         let result = fish.calc_magnitude();
         assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case("[[[[[9,8],1],2],3],4]", 0, "[[[[0,9],2],3],4]")]
+    pub fn snailfish_reduce_test(#[case] data: &'static str, #[case] depth: i64, #[case] expected: &'static str) {
+        let mut fish = SnailFish::from_str(data);
+        fish.reduce(depth);
+
+        assert_eq!(expected, format!("{fish}"));
     }
 }
