@@ -50,9 +50,9 @@ impl SnailFish {
         }
     }
 
-    /*pub fn reduce_root(&mut self) -> Option<ReduceAction> {
+    pub fn reduce_root(&mut self) -> Option<ReduceAction> {
         self.reduce(0)
-    }*/
+    }
 
     pub fn distribute_left(&mut self, amount: i64) -> bool {
         match self {
@@ -94,7 +94,7 @@ impl SnailFish {
                     );
 
                     // Check if should be reduced again
-                    self.reduce(depth)?;
+                    return self.reduce(depth);
                 }
             },
             SnailFish::Pair(a, b) => {
@@ -236,6 +236,9 @@ impl SnailFish {
                         return action;
                     }
                 }
+
+                // Check if should be reduced again
+                //self.reduce(depth)?;
             }
         }
 
@@ -389,6 +392,32 @@ mod tests {
     pub fn snailfish_reduce_test(#[case] data: &'static str, #[case] depth: i64, #[case] expected: &'static str) {
         let mut fish = SnailFish::from_str(data);
         fish.reduce(depth);
+
+        assert_eq!(expected, format!("{fish}"));
+    }
+
+    #[rstest]
+    #[case("[1,2]", "3", "[[1,2],3]")]
+    #[case("5", "3", "[5,3]")]
+    #[case("[1,2]", "[3,4]", "[[1,2],[3,4]]")]
+    #[case("[[[[4,3],4],4],[7,[[8,4],9]]]", "[1,1]", "[[[[[4,3],4],4],[7,[[8,4],9]]],[1,1]]")]
+    pub fn snailfish_add_test(#[case] data_1: &'static str, #[case] data_2: &'static str, #[case] expected: &'static str) {
+        let fish_1 = SnailFish::from_str(data_1);
+        let fish_2 = SnailFish::from_str(data_2);
+
+        let fish = fish_1 + fish_2;
+
+        assert_eq!(expected, format!("{fish}"));
+    }
+
+    #[rstest]
+    #[case("[[[[4,3],4],4],[7,[[8,4],9]]]", "[1,1]", "[[[[0,7],4],[[7,8],[6,0]]],[8,1]]")]
+    pub fn snailfish_add_reduce_test(#[case] data_1: &'static str, #[case] data_2: &'static str, #[case] expected: &'static str) {
+        let fish_1 = SnailFish::from_str(data_1);
+        let fish_2 = SnailFish::from_str(data_2);
+
+        let mut fish = fish_1 + fish_2;
+        fish.reduce_root();
 
         assert_eq!(expected, format!("{fish}"));
     }
