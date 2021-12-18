@@ -9,9 +9,9 @@ pub fn grow_polymer(template: &str, rules: &[([char; 2], char)], mut steps: u32)
     let rules = rules
         .iter()
         .map(|([a, b], c)| {
-            let a = (*a as u8) - ('A' as u8);
-            let b = (*b as u8) - ('A' as u8);
-            let c = (*c as u8) - ('A' as u8);
+            let a = ((*a as u8) - ('A' as u8)) as usize;
+            let b = ((*b as u8) - ('A' as u8)) as usize;
+            let c = ((*c as u8) - ('A' as u8)) as usize;
 
             ((a, b), [(a, c), (c, b)])
         })
@@ -28,11 +28,11 @@ pub fn grow_polymer(template: &str, rules: &[([char; 2], char)], mut steps: u32)
         while let Some(b_char) = chars_iter.next() {
             let a_char = prev_char.unwrap();
 
-            let a = (a_char as u8) - ('A' as u8);
-            let b = (b_char as u8) - ('A' as u8);
+            let a = ((a_char as u8) - ('A' as u8)) as usize;
+            let b = ((b_char as u8) - ('A' as u8)) as usize;
 
             if rules.contains_key(&(a, b)) {
-                seq_counts[a as usize][b as usize] += 1;
+                seq_counts[a][b] += 1;
             }
 
             // Update
@@ -51,44 +51,44 @@ pub fn grow_polymer(template: &str, rules: &[([char; 2], char)], mut steps: u32)
         let mut updates = Vec::new();
 
         for ((sa, sb), [(a, c), (_, b)]) in rules.iter() {
-            let seq_count = seq_counts[*sa as usize][*sb as usize];
+            let seq_count = seq_counts[*sa][*sb];
             if seq_count <= 0 {
                 continue;
             }
 
-            char_counts[*c as usize] += seq_count;
+            // Update char count
+            char_counts[*c] += seq_count;
 
+            // Add pending seq updates
             updates.push(((*a, *b), -seq_count));
             updates.push(((*a, *c), seq_count));
             updates.push(((*c, *b), seq_count));
         }
 
-        // Update counts
+        // Apply seq update
         for ((a, b), count) in updates {
-            seq_counts[a as usize][b as usize] += count;
+            seq_counts[a][b] += count;
         }
 
         steps -= 1;
     }
 
-    // Find min/max character
+    // Find min/max character count
     let (min, max) = char_counts
         .iter()
         .fold((i64::MAX, i64::MIN), |(min, max), v: &i64 | {
-            if v > &0 {
+            if v.gt(&0) {
                 (min.min(*v), max.max(*v))
             } else {
                 (min, max)
             }
         });
-    
+
     (min, max)
 }
 
 pub fn grow_polymer_get_number(template: &str, rules: &[([char; 2], char)], steps: u32) -> i64 {
     let (min, max) = grow_polymer(template, rules, steps);
-
-    println!("Min: {min}, Max: {max}");
     max - min
 }
 
@@ -96,17 +96,6 @@ pub fn grow_polymer_get_number(template: &str, rules: &[([char; 2], char)], step
 mod tests {
     use rstest::*;
     use super::{*, data::*};
-
-    /*#[rstest]
-    #[case(TEST_DATA_1_0, TEST_DATA_1_1, 1, "NCNBCHB")]
-    #[case(TEST_DATA_1_0, TEST_DATA_1_1, 2, "NBCCNBBBCBHCB")]
-    #[case("NBCCNBBBCBHCB", TEST_DATA_1_1, 1, "NBBBCNCCNBBNBNBBCHBHHBCHB")]
-    #[case(TEST_DATA_1_0, TEST_DATA_1_1, 3, "NBBBCNCCNBBNBNBBCHBHHBCHB")]
-    #[case(TEST_DATA_1_0, TEST_DATA_1_1, 4, "NBBNBNBBCCNBCNCCNBBNBBNBBBNBBNBBCBHCBHHNHCBBCBHCB")]
-    pub fn grow_polymer_test<T: AsRef<str>, S: AsRef<[(&'static str, &'static str)]>>(#[case] template: T, #[case] rules: S, #[case] steps: u32, #[case] expected: &str) {
-        let result = grow_polymer(template.as_ref(), rules.as_ref(), steps);
-        assert_eq!(expected, &result);
-    }*/
 
     #[rstest]
     #[case(TEST_DATA_1_0, TEST_DATA_1_1, 10, 1588)]
