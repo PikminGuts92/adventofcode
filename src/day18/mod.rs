@@ -271,6 +271,12 @@ impl fmt::Display for SnailFish {
     }
 }
 
+impl fmt::Debug for SnailFish {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self, f)
+    }
+}
+
 fn parse_from_str(chars: &mut Chars) -> SnailFish {
     parse_fish(chars, &mut 0)
 }
