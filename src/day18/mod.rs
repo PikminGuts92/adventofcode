@@ -83,7 +83,7 @@ impl SnailFish {
 
         match self {
             SnailFish::Literal(n) => {
-                if depth.ge(&10) {
+                if *n >= 10 {
                     // Split into pair
                     let l = *n / 2;
                     let r = *n - l;
@@ -98,115 +98,117 @@ impl SnailFish {
                 }
             },
             SnailFish::Pair(a, b) => {
-                // Reduce left
-                while let Some(a_action) = a.reduce(depth + 1) {
-                    if depth.ge(&4) {
-                        // Propagate action up
-                        return Some(a_action);
-                    }
-
-                    match a_action {
-                        ReduceAction::Explode(d, l, r) => {
-                            let mut a_consumed = false;
-                            let mut b_consumed = false;
-
-                            if d.ne(&(depth + 1)) && a.is_literal() {
-                                // Consume action and update a
-                                *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
-                                a_consumed = true;
-                            }
-
-                            if b.is_literal() {
-                                // Consume action and update b
-                                *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
-                                b_consumed = true;
-                            }
-
-                            let new_action = match (a_consumed, b_consumed) {
-                                (false, false) => Some(ReduceAction::Explode(d, l, r)),
-                                (false, true) => Some(ReduceAction::ExplodeL(d, l)),
-                                (true, false) => Some(ReduceAction::ExplodeR(d, r)),
-                                _ => None
-                            };
-
+                while !a.is_reduced(depth + 1) || !b.is_reduced(depth + 1) {
+                    // Reduce left
+                    while let Some(a_action) = a.reduce(depth + 1) {
+                        if depth.ge(&4) {
                             // Propagate action up
-                            if new_action.is_some() {
-                                return new_action;
-                            }
+                            return Some(a_action);
                         }
-                        ReduceAction::ExplodeL(d, l) => {
-                            if a.is_literal() {
-                                // Consume action and update a
-                                *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
-                            } else {
+
+                        match a_action {
+                            ReduceAction::Explode(d, l, r) => {
+                                let mut a_consumed = false;
+                                let mut b_consumed = false;
+
+                                if d.ne(&(depth + 1)) && a.is_literal() {
+                                    // Consume action and update a
+                                    *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                    a_consumed = true;
+                                }
+
+                                if b.is_literal() {
+                                    // Consume action and update b
+                                    *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                    b_consumed = true;
+                                }
+
+                                let new_action = match (a_consumed, b_consumed) {
+                                    (false, false) => Some(ReduceAction::Explode(d, l, r)),
+                                    (false, true) => Some(ReduceAction::ExplodeL(d, l)),
+                                    (true, false) => Some(ReduceAction::ExplodeR(d, r)),
+                                    _ => None
+                                };
+
                                 // Propagate action up
-                                return Some(a_action);
+                                if new_action.is_some() {
+                                    return new_action;
+                                }
                             }
-                        }
-                        ReduceAction::ExplodeR(d, r) => {
-                            if b.is_literal() {
-                                // Consume action and update b
-                                *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
-                            } else {
-                                // Distribute to nested literal
-                                b.distribute_right(r);
+                            ReduceAction::ExplodeL(d, l) => {
+                                if a.is_literal() {
+                                    // Consume action and update a
+                                    *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                } else if depth > 0 {
+                                    // Propagate action up
+                                    return Some(a_action);
+                                }
+                            }
+                            ReduceAction::ExplodeR(d, r) => {
+                                if b.is_literal() {
+                                    // Consume action and update b
+                                    *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                } else {
+                                    // Distribute to nested literal
+                                    b.distribute_right(r);
+                                }
                             }
                         }
                     }
-                }
 
-                // Reduce right
-                while let Some(b_action) = b.reduce(depth + 1) {
-                    if depth.ge(&4) {
-                        // Propagate action up
-                        return Some(b_action);
-                    }
-
-                    match b_action {
-                        ReduceAction::Explode(d, l, r) => {
-                            let mut a_consumed = false;
-                            let mut b_consumed = false;
-
-                            if a.is_literal() {
-                                // Consume action and update a
-                                *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
-                                a_consumed = true;
-                            }
-
-                            if d.ne(&(depth + 1)) && b.is_literal() {
-                                // Consume action and update b
-                                *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
-                                b_consumed = true;
-                            }
-
-                            let new_action = match (a_consumed, b_consumed) {
-                                (false, false) => Some(ReduceAction::Explode(d, l, r)),
-                                (false, true) => Some(ReduceAction::ExplodeL(d, l)),
-                                (true, false) => Some(ReduceAction::ExplodeR(d, r)),
-                                _ => None
-                            };
-
+                    // Reduce right
+                    while let Some(b_action) = b.reduce(depth + 1) {
+                        if depth.ge(&4) {
                             // Propagate action up
-                            if new_action.is_some() {
-                                return new_action;
-                            }
+                            return Some(b_action);
                         }
-                        ReduceAction::ExplodeL(d, l) => {
-                            if a.is_literal() {
-                                // Consume action and update a
-                                *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
-                            } else {
-                                // Distribute to nested literal
-                                a.distribute_right(l);
-                            }
-                        }
-                        ReduceAction::ExplodeR(d, r) => {
-                            if b.is_literal() {
-                                // Consume action and update b
-                                *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
-                            } else {
+
+                        match b_action {
+                            ReduceAction::Explode(d, l, r) => {
+                                let mut a_consumed = false;
+                                let mut b_consumed = false;
+
+                                if a.is_literal() {
+                                    // Consume action and update a
+                                    *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                    a_consumed = true;
+                                }
+
+                                if d.ne(&(depth + 1)) && b.is_literal() {
+                                    // Consume action and update b
+                                    *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                    b_consumed = true;
+                                }
+
+                                let new_action = match (a_consumed, b_consumed) {
+                                    (false, false) => Some(ReduceAction::Explode(d, l, r)),
+                                    (false, true) => Some(ReduceAction::ExplodeL(d, l)),
+                                    (true, false) => Some(ReduceAction::ExplodeR(d, r)),
+                                    _ => None
+                                };
+
                                 // Propagate action up
-                                return Some(b_action);
+                                if new_action.is_some() {
+                                    return new_action;
+                                }
+                            }
+                            ReduceAction::ExplodeL(d, l) => {
+                                if a.is_literal() {
+                                    // Consume action and update a
+                                    *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                } else {
+                                    // Distribute to nested literal
+                                    a.distribute_right(l);
+                                }
+                            }
+                            ReduceAction::ExplodeR(d, r) => {
+                                if b.is_literal() {
+                                    // Consume action and update b
+                                    *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                } else if depth > 0 {
+                                    // Propagate action up
+                                    return Some(b_action);
+                                }
                             }
                         }
                     }
