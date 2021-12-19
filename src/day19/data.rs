@@ -1,3 +1,15 @@
+pub const TEST_DATA_0_RAW: &str = "
+--- scanner 0 ---
+0,2
+4,1
+3,3
+
+--- scanner 1 ---
+-1,-1
+-5,0
+-2,1
+";
+
 pub const TEST_DATA_1_RAW: &str = "
 --- scanner 0 ---
 404,-588,-901
