@@ -4,17 +4,21 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Add;
 use std::str::Chars;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
+fn get_id() -> usize { COUNTER.fetch_add(1, Ordering::Relaxed) }
 
 pub enum ReduceAction {
-    Explode(i64, i64, i64),
-    ExplodeL(i64, i64),
-    ExplodeR(i64, i64)
+    Explode(usize, i64, i64),
+    ExplodeL(usize, i64),
+    ExplodeR(usize, i64)
 }
 
 //#[derive(Debug)]
 pub enum SnailFish {
-    Literal(i64),
-    Pair(Box<SnailFish>, Box<SnailFish>),
+    Literal(usize, i64),
+    Pair(usize, Box<SnailFish>, Box<SnailFish>),
 }
 
 impl SnailFish {
@@ -23,17 +27,24 @@ impl SnailFish {
         parse_from_str(&mut chars)
     }
 
+    pub fn id(&self) -> usize {
+        match self {
+            SnailFish::Literal(id, _) => *id,
+            SnailFish::Pair(id, _, _) => *id,
+        }
+    }
+
     pub fn calc_magnitude(&self) -> i64 {
         match self {
-            SnailFish::Literal(n) => *n,
-            SnailFish::Pair(a, b)
+            SnailFish::Literal(_, n) => *n,
+            SnailFish::Pair(_, a, b)
                 => (a.calc_magnitude() * 3) + (b.calc_magnitude() * 2)
         }
     }
 
     pub fn is_literal(&self) -> bool {
         match self {
-            SnailFish::Literal(_) => true,
+            SnailFish::Literal(_, _) => true,
             _ => false
         }
     }
@@ -44,7 +55,7 @@ impl SnailFish {
 
     pub fn is_pair_with_literals(&self) -> bool {
         match self {
-            SnailFish::Pair(a, b)
+            SnailFish::Pair(_, a, b)
                 => a.is_literal() && b.is_literal(),
             _ => false,
         }
@@ -56,21 +67,22 @@ impl SnailFish {
 
     pub fn distribute_left(&mut self, amount: i64) -> bool {
         match self {
-            SnailFish::Literal(n) => {
+            SnailFish::Literal(_, n) => {
                 *n += amount;
                 true
             }
-            SnailFish::Pair(a, _) => a.distribute_left(amount)
+            SnailFish::Pair(_, a, _) => a.distribute_left(amount)
         }
     }
 
     pub fn distribute_right(&mut self, amount: i64) -> bool {
         match self {
-            SnailFish::Literal(n) => {
+            SnailFish::Literal(_, n) => {
                 *n += amount;
                 true
             }
-            SnailFish::Pair(a, _) => a.distribute_right(amount)
+            // Should distribute against b???
+            SnailFish::Pair(_, a, _) => a.distribute_right(amount)
         }
     }
 
@@ -82,22 +94,23 @@ impl SnailFish {
         // First split, then explode
 
         match self {
-            SnailFish::Literal(n) => {
+            SnailFish::Literal(id, n) => {
                 if *n >= 10 {
                     // Split into pair
                     let l = *n / 2;
                     let r = *n - l;
 
                     *self = SnailFish::Pair(
-                        Box::new(SnailFish::Literal(l)),
-                        Box::new(SnailFish::Literal(r)),
+                        *id,
+                        Box::new(SnailFish::Literal(get_id(), l)),
+                        Box::new(SnailFish::Literal(get_id(), r)),
                     );
 
                     // Check if should be reduced again
                     return self.reduce(depth);
                 }
             },
-            SnailFish::Pair(a, b) => {
+            SnailFish::Pair(id, a, b) => {
                 while !a.is_reduced(depth + 1) || !b.is_reduced(depth + 1) {
                     // Reduce left
                     while let Some(a_action) = a.reduce(depth + 1) {
@@ -107,26 +120,26 @@ impl SnailFish {
                         }
 
                         match a_action {
-                            ReduceAction::Explode(d, l, r) => {
+                            ReduceAction::Explode(action_id, l, r) => {
                                 let mut a_consumed = false;
                                 let mut b_consumed = false;
 
-                                if d.ne(&(depth + 1)) && a.is_literal() {
+                                if action_id.ne(&a.id()) && a.is_literal() {
                                     // Consume action and update a
-                                    *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                    *a = Box::new(SnailFish::Literal(a.id(), l + a.calc_magnitude()));
                                     a_consumed = true;
                                 }
 
                                 if b.is_literal() {
                                     // Consume action and update b
-                                    *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                    *b = Box::new(SnailFish::Literal(b.id(), r + b.calc_magnitude()));
                                     b_consumed = true;
                                 }
 
                                 let new_action = match (a_consumed, b_consumed) {
-                                    (false, false) => Some(ReduceAction::Explode(d, l, r)),
-                                    (false, true) => Some(ReduceAction::ExplodeL(d, l)),
-                                    (true, false) => Some(ReduceAction::ExplodeR(d, r)),
+                                    (false, false) => Some(ReduceAction::Explode(action_id, l, r)),
+                                    (false, true) => Some(ReduceAction::ExplodeL(action_id, l)),
+                                    (true, false) => Some(ReduceAction::ExplodeR(action_id, r)),
                                     _ => None
                                 };
 
@@ -135,19 +148,19 @@ impl SnailFish {
                                     return new_action;
                                 }
                             }
-                            ReduceAction::ExplodeL(d, l) => {
+                            ReduceAction::ExplodeL(action_id, l) => {
                                 if a.is_literal() {
                                     // Consume action and update a
-                                    *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                    *a = Box::new(SnailFish::Literal(a.id(), l + a.calc_magnitude()));
                                 } else if depth > 0 {
                                     // Propagate action up
                                     return Some(a_action);
                                 }
                             }
-                            ReduceAction::ExplodeR(d, r) => {
+                            ReduceAction::ExplodeR(action_id, r) => {
                                 if b.is_literal() {
                                     // Consume action and update b
-                                    *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                    *b = Box::new(SnailFish::Literal(b.id(), r + b.calc_magnitude()));
                                 } else {
                                     // Distribute to nested literal
                                     b.distribute_right(r);
@@ -164,26 +177,26 @@ impl SnailFish {
                         }
 
                         match b_action {
-                            ReduceAction::Explode(d, l, r) => {
+                            ReduceAction::Explode(action_id, l, r) => {
                                 let mut a_consumed = false;
                                 let mut b_consumed = false;
 
                                 if a.is_literal() {
                                     // Consume action and update a
-                                    *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                    *a = Box::new(SnailFish::Literal(a.id(), l + a.calc_magnitude()));
                                     a_consumed = true;
                                 }
 
-                                if d.ne(&(depth + 1)) && b.is_literal() {
+                                if action_id.ne(&b.id()) && b.is_literal() {
                                     // Consume action and update b
-                                    *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                    *b = Box::new(SnailFish::Literal(b.id(), r + b.calc_magnitude()));
                                     b_consumed = true;
                                 }
 
                                 let new_action = match (a_consumed, b_consumed) {
-                                    (false, false) => Some(ReduceAction::Explode(d, l, r)),
-                                    (false, true) => Some(ReduceAction::ExplodeL(d, l)),
-                                    (true, false) => Some(ReduceAction::ExplodeR(d, r)),
+                                    (false, false) => Some(ReduceAction::Explode(action_id, l, r)),
+                                    (false, true) => Some(ReduceAction::ExplodeL(action_id, l)),
+                                    (true, false) => Some(ReduceAction::ExplodeR(action_id, r)),
                                     _ => None
                                 };
 
@@ -192,19 +205,19 @@ impl SnailFish {
                                     return new_action;
                                 }
                             }
-                            ReduceAction::ExplodeL(d, l) => {
+                            ReduceAction::ExplodeL(action_id, l) => {
                                 if a.is_literal() {
                                     // Consume action and update a
-                                    *a = Box::new(SnailFish::Literal(l + a.calc_magnitude()));
+                                    *a = Box::new(SnailFish::Literal(a.id(), l + a.calc_magnitude()));
                                 } else {
                                     // Distribute to nested literal
                                     a.distribute_right(l);
                                 }
                             }
-                            ReduceAction::ExplodeR(d, r) => {
+                            ReduceAction::ExplodeR(action_id, r) => {
                                 if b.is_literal() {
                                     // Consume action and update b
-                                    *b = Box::new(SnailFish::Literal(r + b.calc_magnitude()));
+                                    *b = Box::new(SnailFish::Literal(b.id(), r + b.calc_magnitude()));
                                 } else if depth > 0 {
                                     // Propagate action up
                                     return Some(b_action);
@@ -227,13 +240,13 @@ impl SnailFish {
                     // Explode pair if two literals
 
                     let action = match (a.as_ref(), b.as_ref()) {
-                        (SnailFish::Literal(a), SnailFish::Literal(b)) => Some(ReduceAction::Explode(depth ,*a, *b)),
+                        (SnailFish::Literal(_, a), SnailFish::Literal(_, b)) => Some(ReduceAction::Explode(*id,*a, *b)),
                         _ => None,
                     };
 
                     // Propagate action up
                     if action.is_some() {
-                        *self = SnailFish::Literal(0);
+                        *self = SnailFish::Literal(*id, 0);
 
                         return action;
                     }
@@ -249,8 +262,8 @@ impl SnailFish {
 
     pub fn is_reduced(&self, depth: i64) -> bool {
         match self {
-            SnailFish::Literal(n) => n.lt(&10),
-            SnailFish::Pair(a, b)
+            SnailFish::Literal(_, n) => n.lt(&10),
+            SnailFish::Pair(_, a, b)
                 => depth.lt(&4) && a.is_reduced(depth + 1) && b.is_reduced(depth + 1),
         }
     }
@@ -260,15 +273,15 @@ impl Add for SnailFish {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self::Pair(Box::new(self), Box::new(rhs))
+        Self::Pair(get_id(), Box::new(self), Box::new(rhs))
     }
 }
 
 impl fmt::Display for SnailFish {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SnailFish::Literal(n) => write!(f, "{n}"),
-            SnailFish::Pair(a, b) => write!(f, "[{a},{b}]")
+            SnailFish::Literal(_, n) => write!(f, "{n}"),
+            SnailFish::Pair(_, a, b) => write!(f, "[{a},{b}]")
         }
     }
 }
@@ -291,7 +304,7 @@ fn parse_fish(chars: &mut Chars, char_index: &mut i64) -> SnailFish {
         '0'..='9' => {
             // Parse literal
             let digit = parse_number(chars, c.to_digit(10).unwrap() as i64, char_index);
-            SnailFish::Literal(digit)
+            SnailFish::Literal(get_id(), digit)
         },
         ',' | ']' => {
             // Just skip characters
@@ -302,7 +315,7 @@ fn parse_fish(chars: &mut Chars, char_index: &mut i64) -> SnailFish {
             let a = parse_fish(chars, char_index);
             let b = parse_fish(chars, char_index);
 
-            SnailFish::Pair(Box::new(a), Box::new(b))
+            SnailFish::Pair(get_id(), Box::new(a), Box::new(b))
         },
         _ => unimplemented!("Unknown character: {c} at index {char_index}")
     }
