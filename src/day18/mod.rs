@@ -74,8 +74,17 @@ impl SnailFish {
         }
     }
 
-    pub fn reduce_root(&mut self) -> Option<ReduceAction> {
-        self.reduce(0)
+    pub fn reduce_root(&mut self) {
+        //self.reduce(0);
+
+        loop {
+            self.reduce_nested(0);
+            self.reduce_split(0);
+
+            //if self.is_reduced(0) {
+                break;
+            //}
+        }
     }
 
     pub fn distribute_to_first_literal(&mut self, amount: i64, orig_id: usize) -> bool {
@@ -108,6 +117,12 @@ impl SnailFish {
                     let l = *n / 2;
                     let r = *n - l;
 
+                    // Ugh... hacky debug code
+                    {
+                        let new_self = SnailFish::Literal(*id, *n);
+                        println!("Splitting: {new_self} w/ id {}", new_self.id());
+                    }
+
                     *self = SnailFish::Pair(
                         *id,
                         Box::new(SnailFish::Literal(get_id(), l)),
@@ -121,12 +136,7 @@ impl SnailFish {
             SnailFish::Pair(id, a, b) => {
                 while !a.is_reduced(depth + 1) || !b.is_reduced(depth + 1) {
                     // Reduce left
-                    while let Some(a_action) = a.reduce(depth + 1) {
-                        if depth.ge(&4) {
-                            // Propagate action up
-                            return Some(a_action.with_id(*id));
-                        }
-
+                    if let Some(a_action) = a.reduce(depth + 1) {
                         match a_action {
                             ReduceAction::Explode(action_id, l, r) => {
                                 // Attempt distributing numbers
@@ -165,12 +175,7 @@ impl SnailFish {
                     }
 
                     // Reduce right
-                    while let Some(b_action) = b.reduce(depth + 1) {
-                        if depth.ge(&4) {
-                            // Propagate action up
-                            return Some(b_action.with_id(*id));
-                        }
-
+                    if let Some(b_action) = b.reduce(depth + 1) {
                         match b_action {
                             ReduceAction::Explode(action_id, l, r) => {
                                 // Attempt distributing numbers
@@ -252,11 +257,166 @@ impl SnailFish {
         None
     }
 
+    pub fn reduce_nested(&mut self, depth: i64) -> Option<ReduceAction> {
+        match self {
+            SnailFish::Pair(id, a, b) => {
+                while !a.is_nested_reduced(depth + 1) || !b.is_nested_reduced(depth + 1) {
+                    // Reduce left
+                    if let Some(a_action) = a.reduce_nested(depth + 1) {
+                        match a_action {
+                            ReduceAction::Explode(action_id, l, r) => {
+                                // Attempt distributing numbers
+                                let a_consumed = a.distribute_to_first_literal(l, action_id);
+                                let b_consumed = b.distribute_to_first_literal(r, action_id);
+
+                                let new_action = match (a_consumed, b_consumed) {
+                                    (false, false) => Some(ReduceAction::Explode(*id, l, r)),
+                                    (false, true) => Some(ReduceAction::ExplodeL(*id, l)),
+                                    (true, false) => Some(ReduceAction::ExplodeR(*id, r)),
+                                    _ => None
+                                };
+
+                                // Propagate action up
+                                if new_action.is_some() && depth > 0 {
+                                    return new_action;
+                                }
+                            }
+                            ReduceAction::ExplodeL(action_id, l) => {
+                                if !a.distribute_to_first_literal(l, action_id) && depth > 0 {
+                                    // Propagate action up
+                                    return Some(a_action.with_id(*id));
+                                }
+                            }
+                            ReduceAction::ExplodeR(action_id, r) => {
+                                if !b.distribute_to_first_literal(r, action_id) && depth > 0 {
+                                    // Propagate action up
+                                    return Some(a_action.with_id(*id));
+                                }
+                            }
+                        }
+                    }
+
+                    // Reduce right
+                    if let Some(b_action) = b.reduce_nested(depth + 1) {
+                        match b_action {
+                            ReduceAction::Explode(action_id, l, r) => {
+                                // Attempt distributing numbers
+                                let a_consumed = a.distribute_to_first_literal(l, action_id);
+                                let b_consumed = b.distribute_to_first_literal(r, action_id);
+
+                                let new_action = match (a_consumed, b_consumed) {
+                                    (false, false) => Some(ReduceAction::Explode(*id, l, r)),
+                                    (false, true) => Some(ReduceAction::ExplodeL(*id, l)),
+                                    (true, false) => Some(ReduceAction::ExplodeR(*id, r)),
+                                    _ => None
+                                };
+
+                                // Propagate action up
+                                if new_action.is_some() && depth > 0 {
+                                    return new_action;
+                                }
+                            }
+                            ReduceAction::ExplodeL(action_id, l) => {
+                                if !a.distribute_to_first_literal(l, action_id) && depth > 0 {
+                                    // Propagate action up
+                                    return Some(b_action.with_id(*id));
+                                }
+                            }
+                            ReduceAction::ExplodeR(action_id, r) => {
+                                if !b.distribute_to_first_literal(r, action_id) && depth > 0 {
+                                    // Propagate action up
+                                    return Some(b_action.with_id(*id));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if depth.ge(&4) {
+                    // Explode pair if two literals
+                    let action = match (a.as_ref(), b.as_ref()) {
+                        (SnailFish::Literal(_, a), SnailFish::Literal(_, b)) => Some(ReduceAction::Explode(*id,*a, *b)),
+                        _ => None,
+                    };
+
+                    // Propagate action up
+                    if action.is_some() {
+                        // Ugh... hacky debug code
+                        if let Some(ReduceAction::Explode(id, _, _)) = action {
+                            let new_self = SnailFish::Pair(
+                                id,
+                                Box::new(SnailFish::Literal(a.id(), a.calc_magnitude())),
+                                Box::new(SnailFish::Literal(b.id(), b.calc_magnitude())),
+                            );
+                            println!("Exploding: {new_self} w/ id {}", new_self.id());
+                        }
+
+                        *self = SnailFish::Literal(*id, 0);
+                        return action;
+                    }
+                }
+
+                // Check if should be reduced again
+                //self.reduce_nested(depth)
+
+                None
+            },
+            _ => None
+        }
+    }
+
+    pub fn reduce_split(&mut self, depth: i64) {
+        match self {
+            SnailFish::Literal(id, n) => {
+                if *n >= 10 {
+                    // Split into pair
+                    let l = *n / 2;
+                    let r = *n - l;
+
+                    // Ugh... hacky debug code
+                    {
+                        let new_self = SnailFish::Literal(*id, *n);
+                        println!("Splitting: {new_self} w/ id {}", new_self.id());
+                    }
+
+                    *self = SnailFish::Pair(
+                        *id,
+                        Box::new(SnailFish::Literal(get_id(), l)),
+                        Box::new(SnailFish::Literal(get_id(), r)),
+                    );
+
+                    // Check if should be reduced again
+                    self.reduce_split(depth)
+                }
+            },
+            SnailFish::Pair(_, a, b) => {
+                a.reduce_split(depth + 1);
+                b.reduce_split(depth + 1);
+            }
+        }
+    }
+
     pub fn is_reduced(&self, depth: i64) -> bool {
         match self {
             SnailFish::Literal(_, n) => n.lt(&10),
             SnailFish::Pair(_, a, b)
                 => depth.lt(&4) && a.is_reduced(depth + 1) && b.is_reduced(depth + 1),
+        }
+    }
+
+    pub fn is_nested_reduced(&self, depth: i64) -> bool {
+        match self {
+            SnailFish::Literal(_, _) => true,
+            SnailFish::Pair(_, a, b)
+                => depth.lt(&4) && a.is_nested_reduced(depth + 1) && b.is_nested_reduced(depth + 1),
+        }
+    }
+
+    pub fn is_split_reduced(&self, depth: i64) -> bool {
+        match self {
+            SnailFish::Literal(_, n) => n.lt(&10),
+            SnailFish::Pair(_, a, b)
+                => a.is_split_reduced(depth + 1) && b.is_split_reduced(depth + 1),
         }
     }
 }
@@ -335,21 +495,30 @@ pub fn snailfish_add_set(data: &[&'static str]) -> SnailFish {
         .map(|d| SnailFish::from_str(d))
         .collect::<Vec<_>>();
 
+    println!("Parsed:");
+    for f in fish.iter() {
+        println!("\t{f}");
+    }
+    println!();
+
     // Perform reduction + summazation
     let mut fish_sum = fish
         .into_iter()
         .reduce(|mut sum, mut fish| {
             println!("{sum}");
 
-            sum.reduce_root();
-            fish.reduce_root();
+            let mut new_sum = sum + fish;
+            new_sum.reduce_root();
 
-            sum + fish
+            //sum.reduce_root();
+            //fish.reduce_root();
+
+            new_sum
         }).unwrap();
 
-    println!("{fish_sum}");
+    //println!("{fish_sum}");
 
-    fish_sum.reduce_root();
+    //fish_sum.reduce_root();
 
     println!("{fish_sum}");
     fish_sum
@@ -462,12 +631,22 @@ mod tests {
     #[rstest]
     #[case("[[[[4,3],4],4],[7,[[8,4],9]]]", "[1,1]", "[[[[0,7],4],[[7,8],[6,0]]],[8,1]]")]
     #[case("[[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]", "[7,[[[3,7],[4,3]],[[6,3],[8,8]]]]", "[[[[4,0],[5,4]],[[7,7],[6,0]]],[[8,[7,7]],[[7,9],[5,0]]]]")]
+    #[case("[[[[6,6],[6,6]],[[6,0],[6,7]]],[[[7,7],[8,9]],[8,[8,1]]]]", "[2,9]", "[[[[6,6],[7,7]],[[0,7],[7,7]]],[[[5,5],[5,6]],9]]")]
     pub fn snailfish_add_reduce_test(#[case] data_1: &'static str, #[case] data_2: &'static str, #[case] expected: &'static str) {
-        let fish_1 = SnailFish::from_str(data_1);
+        let data_set = [
+            data_1,
+            data_2
+        ];
+
+        let fish = snailfish_add_set(&data_set);
+
+        /*let fish_1 = SnailFish::from_str(data_1);
         let fish_2 = SnailFish::from_str(data_2);
 
         let mut fish = fish_1 + fish_2;
-        fish.reduce_root();
+        fish.reduce_root();*/
+
+        println!("Is Reduced: {}", fish.is_reduced(0));
 
         assert_eq!(expected, format!("{fish}"));
     }
