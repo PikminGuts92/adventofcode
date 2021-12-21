@@ -6,7 +6,7 @@ mod tests {
     use super::{*, data::*};
 
     #[rstest]
-    #[case]
+    //#[case]
     pub fn test() {
         assert_eq!(true, true);
     }
