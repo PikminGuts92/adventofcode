@@ -1,4 +1,4 @@
-#![feature(bool_to_option)]
+//#![feature(bool_to_option)]
 
 pub mod day01;
 pub mod day02;

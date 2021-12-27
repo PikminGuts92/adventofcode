@@ -100,7 +100,7 @@ pub fn print_matrix(matrix: &HashSet<(u32, u32)>, x_size: u32, y_size: u32) {
                 _ => ' '
             };
 
-            print!("{c}");
+            print!("{}", c);
         }
 
         println!();

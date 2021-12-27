@@ -267,8 +267,8 @@ impl Add for SnailFish {
 impl fmt::Display for SnailFish {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SnailFish::Literal(n) => write!(f, "{n}"),
-            SnailFish::Pair(a, b) => write!(f, "[{a},{b}]")
+            SnailFish::Literal(n) => write!(f, "{}", n),
+            SnailFish::Pair(a, b) => write!(f, "[{},{}]", a, b)
         }
     }
 }
@@ -304,7 +304,7 @@ fn parse_fish(chars: &mut Chars, char_index: &mut i64) -> SnailFish {
 
             SnailFish::Pair(Box::new(a), Box::new(b))
         },
-        _ => unimplemented!("Unknown character: {c} at index {char_index}")
+        _ => unimplemented!("Unknown character: {} at index {}", c, char_index)
     }
 }
 
@@ -334,7 +334,7 @@ pub fn snailfish_add_set(data: &[&'static str]) -> SnailFish {
     let mut fish_sum = fish
         .into_iter()
         .reduce(|mut sum, mut fish| {
-            println!("{sum}");
+            println!("{}", sum);
 
             sum.reduce_root();
             fish.reduce_root();
@@ -342,11 +342,11 @@ pub fn snailfish_add_set(data: &[&'static str]) -> SnailFish {
             sum + fish
         }).unwrap();
 
-    println!("{fish_sum}");
+    println!("{}", fish_sum);
 
     fish_sum.reduce_root();
 
-    println!("{fish_sum}");
+    println!("{}", fish_sum);
     fish_sum
 }
 
@@ -382,7 +382,7 @@ pub fn find_magnitude_of_snailfish(data: &[&'static str]) -> i64 {
         }).unwrap();
 
     fish_sum.reduce_root();
-    println!("{fish_sum}");
+    println!("{}", fish_sum);
 
     fish_sum.calc_magnitude()
 }
@@ -437,7 +437,7 @@ mod tests {
         let mut fish = SnailFish::from_str(data);
         fish.reduce(depth);
 
-        assert_eq!(expected, format!("{fish}"));
+        assert_eq!(expected, format!("{}", fish));
     }
 
     #[rstest]
@@ -451,7 +451,7 @@ mod tests {
 
         let fish = fish_1 + fish_2;
 
-        assert_eq!(expected, format!("{fish}"));
+        assert_eq!(expected, format!("{}", fish));
     }
 
     #[rstest]
@@ -464,7 +464,7 @@ mod tests {
         let mut fish = fish_1 + fish_2;
         fish.reduce_root();
 
-        assert_eq!(expected, format!("{fish}"));
+        assert_eq!(expected, format!("{}", fish));
     }
 
     #[rstest]
@@ -473,6 +473,6 @@ mod tests {
     #[case(TEST_DATA_ADD_2, "[[[[5,0],[7,4]],[5,5]],[6,6]]")]
     pub fn snailfish_add_set_test<T: AsRef<[&'static str]>>(#[case] data: T, #[case] expected: &'static str) {
         let fish = snailfish_add_set(data.as_ref());
-        assert_eq!(expected, format!("{fish}"));
+        assert_eq!(expected, format!("{}", fish));
     }
 }
