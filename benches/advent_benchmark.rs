@@ -11,8 +11,13 @@ fn day22_benchmark(c: &mut Criterion) {
     for (i, data) in data_set.iter().enumerate() {
         group.bench_function(format!("data_{}", i), |b| b.iter(|| find_on_cube_count(data)));
     }
-    
+    group.finish();
 
+    let mut group = c.benchmark_group("day_22_2");
+
+    for (i, data) in data_set.iter().enumerate() {
+        group.bench_function(format!("data_{}", i), |b| b.iter(|| find_on_cube_count2(data)));
+    }
     group.finish();
 }
 
