@@ -1,4 +1,4 @@
-#[cfg(test)] mod data;
+#[cfg(not(release))] pub mod data;
 
 use std::collections::HashSet;
 use std::ops::RangeInclusive;

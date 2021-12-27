@@ -10,3 +10,10 @@ rayon = "1.5"
 [dev-dependencies]
 criterion = "0.3"
 rstest = "0.12"
+
+[[bench]]
+name = "advent_benchmark"
+harness = false
+
+[lib]
+bench = false
