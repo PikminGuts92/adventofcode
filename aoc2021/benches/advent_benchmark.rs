@@ -1,5 +1,5 @@
 use aoc2021::day22::{*, data::*};
-use criterion::{BenchmarkId, black_box, Criterion, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 fn day22_benchmark(c: &mut Criterion) {
     let data_set = [
