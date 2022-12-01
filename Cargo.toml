@@ -1,19 +1,16 @@
-[package]
-name = "adventofcode2021"
+[workspace]
+members = [
+    "aoc2021",
+    "aoc2022"
+]
+
+[workspace.package]
 version = "0.1.0"
+authors = ["PikminGuts92"]
 edition = "2021"
 
-[dependencies]
+[workspace.dependencies]
+criterion = "0.3" #dev
 csv = "1.1"
 rayon = "1.5"
-
-[dev-dependencies]
-criterion = "0.3"
-rstest = "0.12"
-
-[[bench]]
-name = "advent_benchmark"
-harness = false
-
-[lib]
-bench = false
+rstest = "0.12" # dev

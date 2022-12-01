@@ -1,4 +1,4 @@
-use adventofcode2021::day22::{*, data::*};
+use aoc2021::day22::{*, data::*};
 use criterion::{BenchmarkId, black_box, Criterion, criterion_group, criterion_main};
 
 fn day22_benchmark(c: &mut Criterion) {
