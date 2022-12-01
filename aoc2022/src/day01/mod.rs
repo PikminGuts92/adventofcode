@@ -60,8 +60,6 @@ pub fn find_top3_calories(data: &Vec<Vec<u32>>) -> u64 {
         right[0] = row_sum;
     }
 
-    println!("{top_calories:?}");
-
     top_calories
         .iter()
         .sum()
