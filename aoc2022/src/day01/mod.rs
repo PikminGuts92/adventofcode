@@ -50,21 +50,14 @@ pub fn find_top3_calories(data: &Vec<Vec<u32>>) -> u64 {
             .map(|(i, _)| i)
             .next();
 
-        match index {
-            Some(0) => {
-                top_calories[2] = top_calories[1];
-                top_calories[1] = top_calories[0];
-                top_calories[0] = row_sum;
-            },
-            Some(1) => {
-                top_calories[2] = top_calories[1];
-                top_calories[1] = row_sum;
-            },
-            Some(2) => {
-                top_calories[2] = row_sum;
-            },
-            _ => continue
-        }
+        // Skip if no index found
+        let Some(index) = index else {
+            continue;
+        };
+
+        let (_, right) = top_calories.split_at_mut(index);
+        right.rotate_right(1);
+        right[0] = row_sum;
     }
 
     println!("{top_calories:?}");
