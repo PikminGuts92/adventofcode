@@ -10,7 +10,7 @@ authors = ["PikminGuts92"]
 edition = "2021"
 
 [workspace.dependencies]
-criterion = "0.3" #dev
+criterion = "0.4.0" # dev
 csv = "1.1"
 rayon = "1.5"
-rstest = "0.12" # dev
+rstest = "0.16.0" # dev
