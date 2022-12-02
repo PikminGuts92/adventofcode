@@ -105,11 +105,11 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_0, 15)]
-    #[case(TEST_DATA_1, 15)] // 15876?
+    #[case(TEST_DATA_1, 10718)]
     fn calc_scores_test<const N: usize>(#[case] raw_data: [(char, char); N], #[case] expected: u32) {
         let plays = parse_plays(&raw_data);
-        let (p1_score, _) = calc_scores(plays.as_slice());
+        let (_, p2_score) = calc_scores(plays.as_slice());
 
-        assert_eq!(expected, p1_score);
+        assert_eq!(expected, p2_score);
     }
 }
