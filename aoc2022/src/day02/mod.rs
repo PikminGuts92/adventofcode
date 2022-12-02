@@ -18,6 +18,7 @@ impl IndividualPlay {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum PlayResult {
     Player1,
     Player2,
@@ -88,9 +89,24 @@ mod tests {
     use super::{*, data::*};
 
     #[rstest]
+    #[case(IndividualPlay::Rock, IndividualPlay::Scissors, PlayResult::Player1)]
+    #[case(IndividualPlay::Paper, IndividualPlay::Rock, PlayResult::Player1)]
+    #[case(IndividualPlay::Scissors, IndividualPlay::Paper, PlayResult::Player1)]
+    #[case(IndividualPlay::Scissors, IndividualPlay::Rock, PlayResult::Player2)]
+    #[case(IndividualPlay::Rock, IndividualPlay::Paper, PlayResult::Player2)]
+    #[case(IndividualPlay::Paper, IndividualPlay::Scissors, PlayResult::Player2)]
+    #[case(IndividualPlay::Rock, IndividualPlay::Rock, PlayResult::Draw)]
+    #[case(IndividualPlay::Paper, IndividualPlay::Paper, PlayResult::Draw)]
+    #[case(IndividualPlay::Scissors, IndividualPlay::Scissors, PlayResult::Draw)]
+    fn calc_who_won_test(#[case] p1: IndividualPlay, #[case] p2: IndividualPlay, #[case] expected: PlayResult) {
+        let result = calc_who_won(&p1, &p2);
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
     #[case(TEST_DATA_0, 15)]
     #[case(TEST_DATA_1, 15)] // 15876?
-    fn calc_who_won_test<const N: usize>(#[case] raw_data: [(char, char); N], #[case] expected: u32) {
+    fn calc_scores_test<const N: usize>(#[case] raw_data: [(char, char); N], #[case] expected: u32) {
         let plays = parse_plays(&raw_data);
         let (p1_score, _) = calc_scores(plays.as_slice());
 
