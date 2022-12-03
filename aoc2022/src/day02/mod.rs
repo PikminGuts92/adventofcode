@@ -1,6 +1,6 @@
 #[cfg(test)] mod data;
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum IndividualPlay { // Shape
     Rock,
     Paper,
@@ -25,12 +25,33 @@ pub enum PlayResult {
     Draw
 }
 
+impl PlayResult {
+    pub fn from_char(c: char) -> PlayResult {
+        match c {
+            'X' => PlayResult::Player1,
+            'Y' => PlayResult::Draw,
+            'Z' => PlayResult::Player2,
+            _ => unimplemented!("Character value of \'{c}\' for play not supported")
+        }
+    }
+}
+
 pub fn parse_plays(plays: &[(char, char)]) -> Vec<(IndividualPlay, IndividualPlay)> {
     plays
         .iter()
         .map(|(a, b)| (
             IndividualPlay::from_char(*a),
             IndividualPlay::from_char(*b)
+        ))
+        .collect()
+}
+
+pub fn parse_plays_with_result(plays: &[(char, char)]) -> Vec<(IndividualPlay, PlayResult)> {
+    plays
+        .iter()
+        .map(|(a, b)| (
+            IndividualPlay::from_char(*a),
+            PlayResult::from_char(*b)
         ))
         .collect()
 }
@@ -55,6 +76,51 @@ pub fn calc_scores(plays: &[(IndividualPlay, IndividualPlay)]) -> (u32, u32) {
 
     for (p1, p2) in plays.iter() {
         let play_result = calc_who_won(p1, p2);
+
+        // Add shape choice scores
+        for (p, score) in [(p1, &mut p1_score), (p2, &mut p2_score)].iter_mut() {
+            **score += match p {
+                IndividualPlay::Rock => 1,
+                IndividualPlay::Paper => 2,
+                IndividualPlay::Scissors => 3
+            }
+        }
+
+        // Add winning scores
+        match play_result {
+            PlayResult::Player1 => {
+                p1_score += 6;
+            },
+            PlayResult::Player2 => {
+                p2_score += 6;
+            },
+            PlayResult::Draw => {
+                p1_score += 3;
+                p2_score += 3;
+            },
+        }
+    }
+
+    (p1_score, p2_score)
+}
+
+pub fn calc_scores_2(plays: &[(IndividualPlay, PlayResult)]) -> (u32, u32) {
+    let (mut p1_score, mut p2_score) = (0u32, 0u32);
+
+    for (p1, play_result) in plays.iter() {
+        let p2 = match (p1, play_result) {
+            (_, PlayResult::Draw) => p1,
+            // P1 wins
+            (IndividualPlay::Rock, PlayResult::Player1) => &IndividualPlay::Scissors,
+            (IndividualPlay::Paper, PlayResult::Player1) => &IndividualPlay::Rock,
+            (IndividualPlay::Scissors, PlayResult::Player1) => &IndividualPlay::Paper,
+            // P2 wins
+            (IndividualPlay::Rock, PlayResult::Player2) => &IndividualPlay::Paper,
+            (IndividualPlay::Paper, PlayResult::Player2) => &IndividualPlay::Scissors,
+            (IndividualPlay::Scissors, PlayResult::Player2) => &IndividualPlay::Rock,
+        };
+
+        //println!("P1: {p1:?}, P2: {p2:?}");
 
         // Add shape choice scores
         for (p, score) in [(p1, &mut p1_score), (p2, &mut p2_score)].iter_mut() {
@@ -109,6 +175,16 @@ mod tests {
     fn calc_scores_test<const N: usize>(#[case] raw_data: [(char, char); N], #[case] expected: u32) {
         let plays = parse_plays(&raw_data);
         let (_, p2_score) = calc_scores(plays.as_slice());
+
+        assert_eq!(expected, p2_score);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0, 12)]
+    #[case(TEST_DATA_1, 14652)]
+    fn calc_scores_2_test<const N: usize>(#[case] raw_data: [(char, char); N], #[case] expected: u32) {
+        let plays = parse_plays_with_result(&raw_data);
+        let (_, p2_score) = calc_scores_2(plays.as_slice());
 
         assert_eq!(expected, p2_score);
     }
