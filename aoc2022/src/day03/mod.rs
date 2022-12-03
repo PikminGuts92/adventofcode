@@ -25,20 +25,10 @@ impl Compartment {
 
         // Enumerate data in compartments
         for (data, part) in [(d1, &mut comp.part1), (d2, &mut comp.part2)] {
-            let mut char_count = 0;
-
             for c in data.chars() {
                 let index = get_index(c);
                 part[index] += 1;
-
-                char_count += 1;
-
-                //println!("['{c}', {index}]");
             }
-
-            //println!("Char count: {char_count}");
-
-            //println!("Part: {part:?}");
         }
 
         // Find chars in both
@@ -55,12 +45,7 @@ impl Compartment {
             if in_both {
                 comp.shared_points += (i + 1) as u32;
             }
-
-            //let diff = c1.abs_diff(c2);
-            //comp.shared_points += (i as u32 + 1) * (diff as u32);
         }
-
-        //println!("Points: {}", comp.shared_points);
 
         comp
     }
