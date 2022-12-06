@@ -50,9 +50,22 @@ mod tests {
     #[case(TEST_DATA_2, 6)]
     #[case(TEST_DATA_3, 10)]
     #[case(TEST_DATA_4, 11)]
-    #[case(TEST_DATA_5, 0)]
-    fn find_first_non_repeating_index_test(#[case] data: &str, #[case] expected: usize) {
+    #[case(TEST_DATA_5, 1155)]
+    fn find_first_non_repeating_index_4_test(#[case] data: &str, #[case] expected: usize) {
         let result = find_first_non_repeating_index(data, 4);
+
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0, 19)]
+    #[case(TEST_DATA_1, 23)]
+    #[case(TEST_DATA_2, 23)]
+    #[case(TEST_DATA_3, 29)]
+    #[case(TEST_DATA_4, 26)]
+    #[case(TEST_DATA_5, 2789)]
+    fn find_first_non_repeating_index_14_test(#[case] data: &str, #[case] expected: usize) {
+        let result = find_first_non_repeating_index(data, 14);
 
         assert_eq!(expected, result);
     }
