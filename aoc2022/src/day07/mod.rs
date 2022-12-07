@@ -143,16 +143,16 @@ fn calculate_dir_sizes_recurse(items: &mut [DirectoryItem], idx: usize) -> u64 {
     current_size
 }
 
-pub fn find_idices_where<T, F: Fn(&T) -> bool>(items: &[T], case: F) -> Vec<usize> {
+pub fn find_idices_where<T, S, F1: Fn(&T) -> bool, F2: Fn((usize, &T)) -> S>(items: &[T], case: F1, mapper: F2) -> Vec<S> {
     items
         .iter()
         .enumerate()
         .filter(|(i, item)| case(item))
-        .map(|(i, _)| i)
+        .map(mapper)
         .collect()
 }
 
-pub fn get_sum_where_dir_sizes_less_than_100000(items: &mut [DirectoryItem]) -> u64 {
+pub fn get_sum_where_dir_sizes_less_than_100000(items: &[DirectoryItem]) -> u64 {
     items
         .iter()
         .fold(0u64, |acc, item| match item {
@@ -163,6 +163,27 @@ pub fn get_sum_where_dir_sizes_less_than_100000(items: &mut [DirectoryItem]) -> 
             },
             _ => acc
         })
+}
+
+pub fn find_smallest_dir_to_delete(items: &[DirectoryItem], system_size: u64, update_size: u64) -> u64 {
+    let mut dir_sizes = items
+        .iter()
+        .filter_map(|item| match item {
+            DirectoryItem::Directory { size: Some(s), .. } => Some(*s),
+            _ => None
+        })
+        .collect::<Vec<_>>();
+
+    dir_sizes.sort();
+
+    let available_space = system_size - dir_sizes.last().map_or(0, |s| *s);
+
+    dir_sizes
+        .iter()
+        .filter(|s| (*s + available_space) >= update_size)
+        .map(|s| *s)
+        .next()
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -177,8 +198,19 @@ mod tests {
         let mut items = parse_directory_data(&raw_data);
         calculate_dir_sizes(&mut items);
 
-        let result = get_sum_where_dir_sizes_less_than_100000(&mut items);
-        //print_dir_items(&items);
+        let result = get_sum_where_dir_sizes_less_than_100000(&items);
+
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0, 24933642)]
+    #[case(TEST_DATA_1, 545729)]
+    fn find_smallest_dir_to_delete_test<const N: usize>(#[case] raw_data: [&str; N], #[case] expected: u64) {
+        let mut items = parse_directory_data(&raw_data);
+        calculate_dir_sizes(&mut items);
+
+        let result = find_smallest_dir_to_delete(&items, 70_000_000, 30_000_000);
 
         assert_eq!(expected, result);
     }
