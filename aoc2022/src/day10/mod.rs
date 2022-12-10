@@ -135,6 +135,38 @@ pub fn execute_instructions_2(instructions: &[Instruction], cycles: &[usize]) ->
     cycle_sum
 }
 
+pub fn emulate_crt_display(instructions: &[Instruction]) {
+    const WIDTH: usize = 40;
+    const HEIGHT: usize = 6;
+
+    let mut line = ['.'; WIDTH];
+
+    // . = Dark, # = Lit
+
+    let program = Program::from_instructions(instructions);
+
+    // Run instructions
+    for (mut cycle, reg_x) in [(1, 1)].into_iter().chain(program) {
+        cycle -= 1; // Fix offset
+
+        let pixel_idx = (cycle % WIDTH) as i32;
+
+        let char_to_draw = [reg_x - 1, reg_x, reg_x + 1]
+            .iter()
+            .filter(|r| r.eq(&&pixel_idx))
+            .next()
+            .map(|_| '#')
+            .unwrap_or('.');
+
+        // Update pixel
+        line[pixel_idx as usize] = char_to_draw;
+
+        if pixel_idx as usize == (WIDTH - 1) {
+            println!("{}", String::from_iter(line));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::*;
@@ -148,5 +180,12 @@ mod tests {
         let result = execute_instructions_2(&data, &cycles);
 
         assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0)]
+    #[case(TEST_DATA_1)] // RZEKEFHA
+    fn emulate_crt_display_test<const N: usize>(#[case] data: [Instruction; N]) {
+        let result = emulate_crt_display(&data);
     }
 }
