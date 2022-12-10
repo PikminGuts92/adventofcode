@@ -11,6 +11,17 @@ pub const TEST_DATA_0: [(Direction, i32); 8] = [
     (Direction::Right, 2),
 ];
 
+pub const TEST_DATA_0_ALT: [(Direction, i32); 8] = [
+    (Direction::Right, 5),
+    (Direction::Up, 8),
+    (Direction::Left, 8),
+    (Direction::Down, 3),
+    (Direction::Right, 17),
+    (Direction::Down, 10),
+    (Direction::Left, 25),
+    (Direction::Up, 20),
+];
+
 pub const TEST_DATA_1: [(Direction, i32); 2000] = [
     (Direction::Left, 2),
     (Direction::Right, 1),

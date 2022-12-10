@@ -12,5 +12,6 @@ edition = "2021"
 [workspace.dependencies]
 criterion = "0.4.0" # dev
 csv = "1.1"
+itertools = "0.10.5"
 rayon = "1.5"
 rstest = "0.16.0" # dev
