@@ -112,7 +112,7 @@ pub fn parse_monkeys(data: &[&str]) -> Vec<Monkey> {
     monkeys
 }
 
-pub fn calculate_monkey_business(mut monkeys: Vec<Monkey>, rounds: usize) -> i64 {
+pub fn calculate_monkey_business(mut monkeys: Vec<Monkey>, rounds: usize, division: i64) -> i64 {
     let mut inspection_counts = vec![0i64; monkeys.len()];
 
     for _ in 0..rounds {
@@ -125,7 +125,9 @@ pub fn calculate_monkey_business(mut monkeys: Vec<Monkey>, rounds: usize) -> i64
                 worry_level = resolve_operation(&monkey.operation, worry_level);
 
                 // Calculate thrown worry level
-                worry_level = ((worry_level as f64) / 3.).floor() as i64;
+                if division != 1 {
+                    worry_level = ((worry_level as f64) / (division as f64)).floor() as i64;
+                }
 
                 // Run test
                 let (throw_if_true, throw_if_false) = monkey.test_result;
@@ -186,11 +188,13 @@ mod tests {
     use super::{*, data::*};
 
     #[rstest]
-    #[case(TEST_DATA_0, 20, 10605)]
-    #[case(TEST_DATA_1, 20, 110220)]
-    fn calculate_monkey_business_test<const N: usize>(#[case] raw_data: [&str; N], #[case] rounds: usize, #[case] expected: i64) {
+    #[case(TEST_DATA_0, 20, 3, 10605)]
+    #[case(TEST_DATA_1, 20, 3, 110220)]
+    #[case(TEST_DATA_0, 1000, 1, 2713310158)]
+    #[case(TEST_DATA_1, 1000, 1, 0)]
+    fn calculate_monkey_business_test<const N: usize>(#[case] raw_data: [&str; N], #[case] rounds: usize, #[case] division: i64, #[case] expected: i64) {
         let data = parse_monkeys(&raw_data);
-        let result = calculate_monkey_business(data, rounds);
+        let result = calculate_monkey_business(data, rounds, division);
 
         assert_eq!(expected, result);
     }
