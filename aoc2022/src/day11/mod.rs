@@ -1,9 +1,11 @@
 #[cfg(test)] mod data;
 
+use std::collections::VecDeque;
+
 #[derive(Debug)]
 pub struct Monkey {
-    pub starting_items: Vec<i64>,
-    pub operation: (OperationVariable, OperationVariable, Operation, OperationVariable), // X = Y ? Z
+    pub items: VecDeque<i64>,
+    pub operation: (OperationVariable, Operation, OperationVariable), // Y op Z
     pub test: TestOperation,
     pub test_result: (usize, usize), // True, False
 }
@@ -32,7 +34,6 @@ pub enum TestOperation {
 #[derive(Debug)]
 pub enum OperationVariable {
     Old,
-    New,
     Number(i64)
 }
 
@@ -40,7 +41,6 @@ impl From<&str> for OperationVariable {
     fn from(v: &str) -> Self {
         match v {
             "old" => OperationVariable::Old,
-            "new" => OperationVariable::New,
             d if d.chars().all(char::is_numeric) => OperationVariable::Number(d.parse::<i64>().unwrap()),
             _ => unimplemented!("Can't parse {v} as OperationVariable")
         }
@@ -58,20 +58,19 @@ pub fn parse_monkeys(data: &[&str]) -> Vec<Monkey> {
             .collect::<Vec<_>>();
 
         let monkey = Monkey {
-            starting_items: lines[0]
+            items: lines[0]
                 .split_ascii_whitespace()
                 .skip(2)
                 .map(|s| {
                     let s = if s.ends_with(',') { &s[..s.len() - 1] } else { s };
                     s.parse::<i64>().unwrap()
                 })
-                .collect::<Vec<i64>>(),
-            operation: match lines[1].split_ascii_whitespace().skip(1).collect::<Vec<_>>().as_slice() {
-                [v1, _, v2, op, v3] => (
+                .collect::<VecDeque<i64>>(),
+            operation: match lines[1].split_ascii_whitespace().skip(3).collect::<Vec<_>>().as_slice() {
+                [v1, op, v2] => (
                     OperationVariable::from(*v1),
-                    OperationVariable::from(*v2),
                     Operation::from(*op),
-                    OperationVariable::from(*v3),
+                    OperationVariable::from(*v2),
                 ),
                 _ => unimplemented!("Can't parse operation")
             },
@@ -107,15 +106,78 @@ pub fn parse_monkeys(data: &[&str]) -> Vec<Monkey> {
             }
         };
 
-        println!("{monkey:?}");
         monkeys.push(monkey);
     }
 
     monkeys
 }
 
-pub fn calculate_monkey_business(monkeys: &[Monkey]) -> i64 {
-    todo!()
+pub fn calculate_monkey_business(mut monkeys: Vec<Monkey>, rounds: usize) -> i64 {
+    let mut inspection_counts = vec![0i64; monkeys.len()];
+
+    for _ in 0..rounds {
+        for i in 0..monkeys.len() {
+            // Consume items
+            while let Some(mut worry_level) = monkeys[i].items.pop_front() {
+                let monkey = &monkeys[i];
+
+                // Calculate current worry level
+                worry_level = resolve_operation(&monkey.operation, worry_level);
+
+                // Calculate thrown worry level
+                worry_level = ((worry_level as f64) / 3.).floor() as i64;
+
+                // Run test
+                let (throw_if_true, throw_if_false) = monkey.test_result;
+                let test_passes = match monkey.test {
+                    TestOperation::DivisibleBy(div) => worry_level % div == 0
+                };
+
+                // Throw new level to other monkey
+                if test_passes {
+                    monkeys[throw_if_true].items.push_back(worry_level);
+                } else {
+                    monkeys[throw_if_false].items.push_back(worry_level);
+                }
+
+                // Update inspection count
+                inspection_counts[i] += 1;
+            }
+        }
+    }
+
+    //monkeys
+    //    .iter()
+    //    .enumerate()
+    //    .for_each(|(i, m)| {
+    //        println!("{m:?} ({} times)", inspection_counts[i]);
+    //    });
+
+    inspection_counts.sort();
+
+    inspection_counts
+        .iter()
+        .rev()
+        .take(2)
+        .map(|i| *i)
+        .product()
+}
+
+pub fn resolve_operation((op_v1, op, op_v2): &(OperationVariable, Operation, OperationVariable), old_level: i64) -> i64 {
+    let v1 = match op_v1 {
+        OperationVariable::Number(n) => *n,
+        OperationVariable::Old => old_level
+    };
+
+    let v2 = match op_v2 {
+        OperationVariable::Number(n) => *n,
+        OperationVariable::Old => old_level
+    };
+
+    match op {
+        Operation::Add => v1 + v2,
+        Operation::Multiply => v1 * v2
+    }
 }
 
 #[cfg(test)]
@@ -124,11 +186,11 @@ mod tests {
     use super::{*, data::*};
 
     #[rstest]
-    #[case(TEST_DATA_0, 10605)]
-    #[case(TEST_DATA_1, 0)]
-    fn calculate_monkey_business_test<const N: usize>(#[case] raw_data: [&str; N], #[case] expected: i64) {
+    #[case(TEST_DATA_0, 20, 10605)]
+    #[case(TEST_DATA_1, 20, 110220)]
+    fn calculate_monkey_business_test<const N: usize>(#[case] raw_data: [&str; N], #[case] rounds: usize, #[case] expected: i64) {
         let data = parse_monkeys(&raw_data);
-        let result = calculate_monkey_business(&data);
+        let result = calculate_monkey_business(data, rounds);
 
         assert_eq!(expected, result);
     }
