@@ -190,8 +190,8 @@ mod tests {
     #[rstest]
     #[case(TEST_DATA_0, 20, 3, 10605)]
     #[case(TEST_DATA_1, 20, 3, 110220)]
-    #[case(TEST_DATA_0, 1000, 1, 2713310158)]
-    #[case(TEST_DATA_1, 1000, 1, 0)]
+    #[case(TEST_DATA_0, 10000, 1, 2713310158)]
+    #[case(TEST_DATA_1, 10000, 1, 0)]
     fn calculate_monkey_business_test<const N: usize>(#[case] raw_data: [&str; N], #[case] rounds: usize, #[case] division: i64, #[case] expected: i64) {
         let data = parse_monkeys(&raw_data);
         let result = calculate_monkey_business(data, rounds, division);
