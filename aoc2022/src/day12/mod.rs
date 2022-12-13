@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-pub fn find_index_of_char<const M: usize>(data: &[[char; M]], c: char, ) -> [usize; 2] {
+pub fn find_index_of_char<const M: usize>(data: &[[char; M]], c: char, ) -> (usize, usize) {
     let (x, y, _) = data
         .iter()
         .enumerate()
@@ -15,17 +15,46 @@ pub fn find_index_of_char<const M: usize>(data: &[[char; M]], c: char, ) -> [usi
         .next()
         .unwrap();
 
-    [x, y]
+    (x, y)
+}
+
+pub fn find_indicies_of_char<const M: usize>(data: &[[char; M]], c: char, ) -> Vec<(usize, usize)> {
+    data
+        .iter()
+        .enumerate()
+        .flat_map(|(y, row)| row
+            .iter()
+            .enumerate()
+            .map(move |(x, rc)| (x, y, rc))
+        )
+        .filter(|(x, y, rc)| c.eq(rc))
+        .map(|(x, y, _)| (x, y))
+        .collect()
 }
 
 pub fn find_shortest_path<const M: usize, const N: usize>(data: &[[char; M]; N]) -> i32 {
     // Get start/end positions
-    let [start_x, start_y] = find_index_of_char(data, 'S');
-    let [end_x, end_y] = find_index_of_char(data, 'E');
+    let (start_x, start_y) = find_index_of_char(data, 'S');
+    let (end_x, end_y) = find_index_of_char(data, 'E');
 
     let mut best_scores = [[i32::MAX; M]; N];
 
     progress_terrain(data, &mut best_scores, (start_x, start_y), (end_x, end_y), &mut HashSet::new());
+
+    best_scores[end_y][end_x]
+}
+
+pub fn find_shortest_path_for_a<const M: usize, const N: usize>(data: &[[char; M]; N]) -> i32 {
+    // Get start/end positions
+    let start_positions = find_indicies_of_char(data, 'a');
+    let (end_x, end_y) = find_index_of_char(data, 'E');
+
+    let mut best_scores = [[i32::MAX; M]; N];
+
+    for (start_x, start_y) in start_positions {
+        progress_terrain(data, &mut best_scores, (start_x, start_y), (end_x, end_y), &mut HashSet::new());
+
+    }
 
     best_scores[end_y][end_x]
 }
@@ -92,6 +121,15 @@ mod tests {
     #[case(TEST_DATA_1, 352)]
     fn find_shortest_path_test<const M: usize, const N: usize>(#[case] data: [[char; M]; N], #[case] expected: i32) {
         let result = find_shortest_path(&data);
+
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0, 29)]
+    #[case(TEST_DATA_1, 345)]
+    fn find_shortest_path_for_a_test<const M: usize, const N: usize>(#[case] data: [[char; M]; N], #[case] expected: i32) {
+        let result = find_shortest_path_for_a(&data);
 
         assert_eq!(expected, result);
     }
