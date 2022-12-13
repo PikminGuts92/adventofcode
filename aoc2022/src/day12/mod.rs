@@ -53,7 +53,6 @@ pub fn find_shortest_path_for_a<const M: usize, const N: usize>(data: &[[char; M
 
     for (start_x, start_y) in start_positions {
         progress_terrain(data, &mut best_scores, (start_x, start_y), (end_x, end_y), &mut HashSet::new());
-
     }
 
     best_scores[end_y][end_x]
