@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 pub struct Monkey {
     pub items: VecDeque<i64>,
     pub operation: (OperationVariable, Operation, OperationVariable), // Y op Z
-    pub test: TestOperation,
+    pub test_divisible_by: i64,
     pub test_result: (usize, usize), // True, False
 }
 
@@ -24,11 +24,6 @@ impl From<&str> for Operation {
             _ => unimplemented!("Can't parse {v} as Operation")
         }
     }
-}
-
-#[derive(Debug)]
-pub enum TestOperation {
-    DivisibleBy(i64)
 }
 
 #[derive(Debug)]
@@ -74,7 +69,7 @@ pub fn parse_monkeys(data: &[&str]) -> Vec<Monkey> {
                 ),
                 _ => unimplemented!("Can't parse operation")
             },
-            test: {
+            test_divisible_by: {
                 let num = lines[2]
                     .split_ascii_whitespace()
                     .rev()
@@ -83,7 +78,7 @@ pub fn parse_monkeys(data: &[&str]) -> Vec<Monkey> {
                     .next()
                     .unwrap();
 
-                TestOperation::DivisibleBy(num)
+                num
             },
             test_result: {
                 let if_true = lines[3]
@@ -113,6 +108,11 @@ pub fn parse_monkeys(data: &[&str]) -> Vec<Monkey> {
 }
 
 pub fn calculate_monkey_business(mut monkeys: Vec<Monkey>, rounds: usize, division: i64) -> i64 {
+    if division == 1 {
+        // Use alternate function
+        return calculate_monkey_business_2(monkeys, rounds);
+    }
+
     let mut inspection_counts = vec![0i64; monkeys.len()];
 
     for _ in 0..rounds {
@@ -131,9 +131,7 @@ pub fn calculate_monkey_business(mut monkeys: Vec<Monkey>, rounds: usize, divisi
 
                 // Run test
                 let (throw_if_true, throw_if_false) = monkey.test_result;
-                let test_passes = match monkey.test {
-                    TestOperation::DivisibleBy(div) => worry_level % div == 0
-                };
+                let test_passes =  worry_level % monkey.test_divisible_by == 0;
 
                 // Throw new level to other monkey
                 if test_passes {
@@ -165,6 +163,51 @@ pub fn calculate_monkey_business(mut monkeys: Vec<Monkey>, rounds: usize, divisi
         .product()
 }
 
+pub fn calculate_monkey_business_2(mut monkeys: Vec<Monkey>, rounds: usize) -> i64 {
+    let mut inspection_counts = vec![0i64; monkeys.len()];
+
+    for _ in 0..rounds {
+        for i in 0..monkeys.len() {
+            // Consume items
+            while let Some(mut worry_level) = monkeys[i].items.pop_front() {
+                let monkey = &monkeys[i];
+
+                // Calculate current worry level
+                let div = monkey.test_divisible_by;
+                let (v1, v2) = get_operation_numbers(&monkey.operation, worry_level);
+
+                worry_level = match monkey.operation.1 {
+                    Operation::Multiply => (v1 % div) * (v2 % div),
+                    Operation::Add => (v1 % div) + (v2 % div)
+                };
+
+                // Run test
+                let (throw_if_true, throw_if_false) = monkey.test_result;
+                let test_passes = worry_level % div == 0;
+
+                // Throw new level to other monkey
+                if test_passes {
+                    monkeys[throw_if_true].items.push_back(worry_level);
+                } else {
+                    monkeys[throw_if_false].items.push_back(worry_level);
+                }
+
+                // Update inspection count
+                inspection_counts[i] += 1;
+            }
+        }
+    }
+
+    inspection_counts.sort();
+
+    inspection_counts
+        .iter()
+        .rev()
+        .take(2)
+        .map(|i| *i)
+        .product()
+}
+
 pub fn resolve_operation((op_v1, op, op_v2): &(OperationVariable, Operation, OperationVariable), old_level: i64) -> i64 {
     let v1 = match op_v1 {
         OperationVariable::Number(n) => *n,
@@ -180,6 +223,20 @@ pub fn resolve_operation((op_v1, op, op_v2): &(OperationVariable, Operation, Ope
         Operation::Add => v1 + v2,
         Operation::Multiply => v1 * v2
     }
+}
+
+pub fn get_operation_numbers((op_v1, op, op_v2): &(OperationVariable, Operation, OperationVariable), old_level: i64) -> (i64, i64) {
+    let v1 = match op_v1 {
+        OperationVariable::Number(n) => *n,
+        OperationVariable::Old => old_level
+    };
+
+    let v2 = match op_v2 {
+        OperationVariable::Number(n) => *n,
+        OperationVariable::Old => old_level
+    };
+
+    (v1, v2)
 }
 
 #[cfg(test)]
