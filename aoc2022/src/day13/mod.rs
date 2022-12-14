@@ -8,6 +8,7 @@ use nom::character::complete::{alpha1, digit1};
 use nom::combinator::map_res;
 use nom::multi::separated_list0;
 use nom::sequence::{delimited, terminated};
+use std::cmp::Ordering;
 
 #[derive(Debug)]
 pub enum PacketData {
@@ -78,15 +79,15 @@ pub fn parse_packet_data(data: &str) -> Vec<[PacketData; 2]> {
         .collect()
 }
 
-pub fn is_in_order(a: &PacketData, b: &PacketData) -> bool {
+pub fn get_order(a: &PacketData, b: &PacketData) -> Ordering {
     match (a, b) {
-        (PacketData::Number(na), PacketData::Number(nb)) => na.le(nb),
+        (PacketData::Number(na), PacketData::Number(nb)) => na.cmp(nb),
         (pa @ PacketData::Number(_), PacketData::Array(arrb)) => compare_arrays_in_order(
             vec![pa].into_iter(),
             arrb.iter()
         ),
         (PacketData::Array(arra), pb @ PacketData::Number(_)) => compare_arrays_in_order(
-            arra.iter().take(1),
+            arra.iter(),
             vec![pb].into_iter(),
         ),
         (PacketData::Array(arra), PacketData::Array(arrb)) => compare_arrays_in_order(
@@ -96,22 +97,31 @@ pub fn is_in_order(a: &PacketData, b: &PacketData) -> bool {
     }
 }
 
-pub fn compare_arrays_in_order<'a, T: Iterator<Item = &'a PacketData>, S: Iterator<Item = &'a PacketData>>(arra: T, arrb: S) -> bool {
-    arra
+pub fn compare_arrays_in_order<'a, T: Iterator<Item = &'a PacketData>, S: Iterator<Item = &'a PacketData>>(arra: T, arrb: S) -> Ordering {
+    let orders = arra
         .into_iter()
         .zip_longest(arrb)
         .inspect(|res| {
             //println!("{res:?}");
         })
         .map(|res| match res {
-            EitherOrBoth::Both(pa, pb) => is_in_order(pa, pb),
-            EitherOrBoth::Right(_) => true, // Left side ran out of items
-            _ => false,
+            EitherOrBoth::Both(pa, pb) => get_order(pa, pb),
+            EitherOrBoth::Right(_) => Ordering::Less, // Left side ran out of items
+            _ => Ordering::Greater,
         })
         .inspect(|is_in_order| {
             //println!("\t{} in order", if *is_in_order { "is" } else { "is not" });
-        })
-        .all(|r| r)
+        });
+
+    for order in orders {
+        match order {
+            Ordering::Less => return Ordering::Less,
+            Ordering::Greater => return Ordering::Greater,
+            _ => {}
+        }
+    }
+
+    Ordering::Equal
 }
 
 pub fn count_packets_in_correct_order(packets: &[[PacketData; 2]]) -> i32 {
@@ -122,13 +132,17 @@ pub fn count_packets_in_correct_order(packets: &[[PacketData; 2]]) -> i32 {
         //println!("{p1:#?}");
         //println!("{p2:#?}");
 
-        println!("{}", p1.to_string());
-        println!("{}", p2.to_string());
-        println!();
+        //println!("{}", p1.to_string());
+        //println!("{}", p2.to_string());
+        //println!();
 
-        continue;
+        //continue;
 
-        let result = is_in_order(p1, p2);
+        let result = match get_order(p1, p2) {
+            Ordering::Greater | Ordering::Equal => false,
+            _ => true,
+        };
+
         if result {
             correct_pairs += i as i32 + 1;
             println!("Pair {}: In Order", i + 1);
@@ -147,7 +161,7 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_0, 13)]
-    #[case(TEST_DATA_1, 533)] // 533 too low
+    #[case(TEST_DATA_1, 5882)]
     fn count_packets_in_correct_order_test(#[case] raw_data: &str, #[case] expected: i32) {
         let packets = parse_packet_data(raw_data);
         let result = count_packets_in_correct_order(&packets);
