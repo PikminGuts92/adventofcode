@@ -5,7 +5,7 @@ use nom::IResult;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till, take_while, take_while1};
 use nom::character::complete::{alpha1, digit1};
-use nom::combinator::map_res;
+use nom::combinator::{map, map_res};
 use nom::multi::separated_list0;
 use nom::sequence::{delimited, terminated};
 use std::cmp::Ordering;
@@ -27,15 +27,14 @@ impl PacketData {
             map_res(
                 digit1,
                 |s: &'a str| s.parse::<i32>().map(|d| PacketData::Number(d))),
-            map_res(
+            map(
                 delimited(
                     tag("["),
                     separated_list0(tag(","), Self::parse_packet),
                     tag("]")
                 ),
-                |packets: Vec<PacketData>| -> Result<PacketData, Box<dyn std::error::Error>> {
-                    Ok(PacketData::Array(packets))
-                })
+                |packets: Vec<PacketData>| PacketData::Array(packets)
+            )
         ))(data)
     }
 
