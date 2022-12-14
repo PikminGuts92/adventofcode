@@ -10,7 +10,7 @@ use nom::multi::separated_list0;
 use nom::sequence::{delimited, terminated};
 use std::cmp::Ordering;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PacketData {
     Array(Vec<PacketData>),
     Number(i32)
@@ -65,7 +65,16 @@ impl PacketData {
     }
 }
 
-pub fn parse_packet_data(data: &str) -> Vec<[PacketData; 2]> {
+pub fn parse_packet_data(data: &str) -> Vec<PacketData> {
+    data
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .map(|s| PacketData::from_str(s))
+        .collect()
+}
+
+pub fn parse_packet_data_in_pairs(data: &str) -> Vec<[PacketData; 2]> {
     data
         .lines()
         .map(|l| l.trim())
@@ -79,30 +88,30 @@ pub fn parse_packet_data(data: &str) -> Vec<[PacketData; 2]> {
         .collect()
 }
 
-pub fn get_order(a: &PacketData, b: &PacketData) -> Ordering {
+pub fn compare_packets(a: &PacketData, b: &PacketData) -> Ordering {
     match (a, b) {
         (PacketData::Number(na), PacketData::Number(nb)) => na.cmp(nb),
-        (pa @ PacketData::Number(_), PacketData::Array(arrb)) => compare_arrays_in_order(
+        (pa @ PacketData::Number(_), PacketData::Array(arrb)) => compare_packet_arrays(
             vec![pa].into_iter(),
             arrb.iter()
         ),
-        (PacketData::Array(arra), pb @ PacketData::Number(_)) => compare_arrays_in_order(
+        (PacketData::Array(arra), pb @ PacketData::Number(_)) => compare_packet_arrays(
             arra.iter(),
             vec![pb].into_iter(),
         ),
-        (PacketData::Array(arra), PacketData::Array(arrb)) => compare_arrays_in_order(
+        (PacketData::Array(arra), PacketData::Array(arrb)) => compare_packet_arrays(
             arra.iter(),
             arrb.iter(),
         )
     }
 }
 
-pub fn compare_arrays_in_order<'a, T: Iterator<Item = &'a PacketData>, S: Iterator<Item = &'a PacketData>>(arra: T, arrb: S) -> Ordering {
+pub fn compare_packet_arrays<'a, T: Iterator<Item = &'a PacketData>, S: Iterator<Item = &'a PacketData>>(arra: T, arrb: S) -> Ordering {
     let orders = arra
         .into_iter()
         .zip_longest(arrb)
         .map(|res| match res {
-            EitherOrBoth::Both(pa, pb) => get_order(pa, pb),
+            EitherOrBoth::Both(pa, pb) => compare_packets(pa, pb),
             EitherOrBoth::Right(_) => Ordering::Less, // Left side ran out of items
             _ => Ordering::Greater,
         });
@@ -122,7 +131,7 @@ pub fn count_packets_in_correct_order(packets: &[[PacketData; 2]]) -> i32 {
     let mut correct_pairs = 0;
 
     for (i, [p1, p2]) in packets.iter().enumerate() {
-        let result = match get_order(p1, p2) {
+        let result = match compare_packets(p1, p2) {
             Ordering::Greater | Ordering::Equal => false,
             _ => true,
         };
@@ -135,8 +144,36 @@ pub fn count_packets_in_correct_order(packets: &[[PacketData; 2]]) -> i32 {
     correct_pairs
 }
 
-pub fn sort_and_find_divider_packets(packets: &mut Vec<PacketData>) -> i32 {
-    todo!()
+pub fn sort_packets_with_divider(mut packets: Vec<PacketData>, [diva, divb]: [PacketData; 2]) -> i32 {
+    // Insert dividers
+    packets.push(diva.clone());
+    packets.push(divb.clone());
+
+    // Sort packets
+    packets.sort_by(|pa, pb| compare_packets(pa, pb));
+
+    // Find index of div a
+    let diva_idx = find_index_of(&packets, |p| match compare_packets(p, &diva) {
+        Ordering::Equal => true,
+        _ => false,
+    }).map(|i| i + 1).unwrap();
+
+    // Find index of div b
+    let divb_idx = find_index_of(&packets, |p| match compare_packets(p, &divb) {
+        Ordering::Equal => true,
+        _ => false,
+    }).map(|i| i + 1).unwrap();
+
+    // Multiply indicies
+    (diva_idx * divb_idx) as i32
+}
+
+pub fn find_index_of<T, F: Fn(&T) -> bool>(collection: &Vec<T>, condition: F) -> Option<usize> {
+    collection
+        .iter()
+        .enumerate()
+        .find(|(_, c)| condition(c))
+        .map(|(i, _)| i)
 }
 
 #[cfg(test)]
@@ -148,8 +185,21 @@ mod tests {
     #[case(TEST_DATA_0, 13)]
     #[case(TEST_DATA_1, 5882)]
     fn count_packets_in_correct_order_test(#[case] raw_data: &str, #[case] expected: i32) {
-        let packets = parse_packet_data(raw_data);
+        let packets = parse_packet_data_in_pairs(raw_data);
         let result = count_packets_in_correct_order(&packets);
+
+        assert_eq!(expected, result);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0, "[[2]]", "[[6]]", 140)]
+    #[case(TEST_DATA_1, "[[2]]", "[[6]]", 24948)]
+    fn sort_packets_with_divider_test(#[case] raw_data: &str, #[case] diva_data: &str, #[case] divb_data: &str, #[case] expected: i32) {
+        let packets = parse_packet_data(raw_data);
+        let diva = parse_packet_data(diva_data).remove(0);
+        let divb = parse_packet_data(divb_data).remove(0);
+
+        let result = sort_packets_with_divider(packets, [diva, divb]);
 
         assert_eq!(expected, result);
     }
