@@ -101,16 +101,10 @@ pub fn compare_arrays_in_order<'a, T: Iterator<Item = &'a PacketData>, S: Iterat
     let orders = arra
         .into_iter()
         .zip_longest(arrb)
-        .inspect(|res| {
-            //println!("{res:?}");
-        })
         .map(|res| match res {
             EitherOrBoth::Both(pa, pb) => get_order(pa, pb),
             EitherOrBoth::Right(_) => Ordering::Less, // Left side ran out of items
             _ => Ordering::Greater,
-        })
-        .inspect(|is_in_order| {
-            //println!("\t{} in order", if *is_in_order { "is" } else { "is not" });
         });
 
     for order in orders {
@@ -128,16 +122,6 @@ pub fn count_packets_in_correct_order(packets: &[[PacketData; 2]]) -> i32 {
     let mut correct_pairs = 0;
 
     for (i, [p1, p2]) in packets.iter().enumerate() {
-        // DEBUG
-        //println!("{p1:#?}");
-        //println!("{p2:#?}");
-
-        //println!("{}", p1.to_string());
-        //println!("{}", p2.to_string());
-        //println!();
-
-        //continue;
-
         let result = match get_order(p1, p2) {
             Ordering::Greater | Ordering::Equal => false,
             _ => true,
@@ -145,13 +129,14 @@ pub fn count_packets_in_correct_order(packets: &[[PacketData; 2]]) -> i32 {
 
         if result {
             correct_pairs += i as i32 + 1;
-            println!("Pair {}: In Order", i + 1);
-        } else {
-            println!("Pair {}: OUT OF ORDER", i + 1)
         }
     }
 
     correct_pairs
+}
+
+pub fn sort_and_find_divider_packets(packets: &mut Vec<PacketData>) -> i32 {
+    todo!()
 }
 
 #[cfg(test)]
