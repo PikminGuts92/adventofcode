@@ -37,6 +37,31 @@ impl PacketData {
                 })
         ))(data)
     }
+
+    pub fn to_string(&self) -> String {
+        let mut working_string = String::new();
+        self.append_to_string(&mut working_string);
+        working_string
+    }
+
+    fn append_to_string(&self, working_string: &mut String) {
+        match self {
+            PacketData::Number(n) => working_string.push_str(&format!("{n}")),
+            PacketData::Array(arr) => {
+                working_string.push('[');
+
+                for (i, p) in arr.iter().enumerate() {
+                    p.append_to_string(working_string);
+
+                    if (i + 1) < arr.len() {
+                        working_string.push(',');
+                    }
+                }
+
+                working_string.push(']');
+            }
+        }
+    }
 }
 
 pub fn parse_packet_data(data: &str) -> Vec<[PacketData; 2]> {
@@ -96,6 +121,12 @@ pub fn count_packets_in_correct_order(packets: &[[PacketData; 2]]) -> i32 {
         // DEBUG
         //println!("{p1:#?}");
         //println!("{p2:#?}");
+
+        println!("{}", p1.to_string());
+        println!("{}", p2.to_string());
+        println!();
+
+        continue;
 
         let result = is_in_order(p1, p2);
         if result {
