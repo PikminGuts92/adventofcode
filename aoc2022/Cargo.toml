@@ -9,7 +9,7 @@ csv = { workspace = true }
 itertools = { workspace = true }
 nom = { workspace = true }
 rayon = { workspace = true }
-take-until = "0.1.0"
+take-until = "0.2.0"
 
 [dev-dependencies]
 criterion = { workspace = true }
