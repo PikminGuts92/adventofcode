@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "aoc2021",
-    "aoc2022"
+    "aoc2022",
+    "aoc2023"
 ]
 
 [workspace.package]
