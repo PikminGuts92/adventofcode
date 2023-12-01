@@ -1,5 +1,18 @@
 #[cfg(test)] mod data;
 
+const DIGITS_AS_WORDS: [&[u8]; 10] = [
+    b"zero",
+    b"one",
+    b"two",
+    b"three",
+    b"four",
+    b"five",
+    b"six",
+    b"seven",
+    b"eight",
+    b"nine",
+];
+
 fn get_digits_from_row_1(row: &[u8]) -> u32 {
     let left_digit = row
         .iter()
@@ -63,7 +76,7 @@ mod tests {
     }
 
     #[rstest]
-    #[case(TEST_DATA_2, 0)]
+    #[case(TEST_DATA_1, 0)]
     fn calculate_sum_from_rows_2_test<const N: usize>(#[case] data: [&[u8]; N], #[case] expected: u32) {
         let actual = calculate_sum_from_rows_2(&data);
 
