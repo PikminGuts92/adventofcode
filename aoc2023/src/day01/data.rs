@@ -1007,3 +1007,13 @@ pub const TEST_DATA_1: [&[u8]; 1000] = [
     b"eight7xhvkrcr",
     b"two2tdjdfbqtqxrs119r",
 ];
+
+pub const TEST_DATA_1_ALT: [&[u8]; 7] = [
+    b"two1nine",
+    b"eightwothree",
+    b"abcone2threexyz",
+    b"xtwone3four",
+    b"4nineeightseven2",
+    b"zoneight234",
+    b"7pqrstsixteen",
+];
