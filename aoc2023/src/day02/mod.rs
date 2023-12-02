@@ -70,6 +70,18 @@ fn find_sum_of_possibilities(games: &[&str], [r1, g1, b1]: &[u32; 3]) -> u32 {
     possible_count
 }
 
+fn find_sum_of_min_powers(games: &[&str]) -> u32 {
+    let mut power_sum = 0u32;
+
+    for game in games {
+        let (_, [r, g, b]) = parse_game_input(game);
+
+        power_sum += r * g * b;
+    }
+
+    power_sum
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::*;
@@ -80,6 +92,15 @@ mod tests {
     #[case(TEST_DATA_1, [12, 13, 14], 2348)]
     fn find_sum_of_possibilities_test<const N: usize>(#[case] data: [&str; N], #[case] config: [u32; 3], #[case] expected: u32) {
         let actual = find_sum_of_possibilities(&data, &config);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0, 2286)]
+    #[case(TEST_DATA_1, 76008)]
+    fn find_sum_of_min_powers_test<const N: usize>(#[case] data: [&str; N], #[case] expected: u32) {
+        let actual = find_sum_of_min_powers(&data);
 
         assert_eq!(expected, actual);
     }
