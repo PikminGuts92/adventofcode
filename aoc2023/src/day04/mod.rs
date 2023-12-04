@@ -69,6 +69,36 @@ fn calculate_winning_numbers_score(data: &[&str]) -> u32 {
     current_sum
 }
 
+fn calculate_winning_numbers_2_score(data: &[&str]) -> u32 {
+    let mut scores = vec![1u32; data.len()];
+
+    // Calculate scores
+    for (i, data_row) in data.into_iter().enumerate() {
+        let (id, winning_nums, played_nums) = parse_card_row(data_row);
+
+        let winners = winning_nums
+            .into_iter()
+            .collect::<HashSet<_>>();
+
+        let matches = played_nums
+            .iter()
+            .filter(|n| winners.contains(n))
+            .count();
+
+        let points = scores[i];
+
+        for j in (i + 1)..(i + 1 + matches) {
+            if let Some(s) = scores.get_mut(j) {
+                *s += points;
+            }
+        }
+    }
+
+    scores
+        .into_iter()
+        .sum()
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::*;
@@ -79,6 +109,15 @@ mod tests {
     #[case(TEST_DATA_1, 18619)]
     fn calculate_winning_numbers_score_test<const N: usize>(#[case] data: [&str; N], #[case] expected: u32) {
         let actual = calculate_winning_numbers_score(&data);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0, 30)]
+    #[case(TEST_DATA_1, 8063216)]
+    fn calculate_winning_numbers_score_2_test<const N: usize>(#[case] data: [&str; N], #[case] expected: u32) {
+        let actual = calculate_winning_numbers_2_score(&data);
 
         assert_eq!(expected, actual);
     }
