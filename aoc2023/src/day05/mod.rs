@@ -115,6 +115,24 @@ fn find_lowest_location_number(data: &str) -> i64 {
     smallest_location_id
 }
 
+fn find_lowest_location_number_with_seed_range(data: &str) -> i64 {
+    let mut smallest_location_id = i64::MAX;
+    let seed_data = parse_seed_data(data);
+
+    let seed_id_ranges = seed_data.seed_ids
+        .chunks_exact(2)
+        .map(|s| s[0]..=(s[0] + s[1]))
+        .collect::<Vec<_>>();
+
+    for seed_id in seed_id_ranges.into_iter().flatten() {
+        let location_id = seed_data.map_seed_id_to_location(seed_id);
+
+        smallest_location_id = smallest_location_id.min(location_id);
+    }
+
+    smallest_location_id
+}
+
 #[cfg(test)] mod data;
 
 #[cfg(test)]
@@ -127,6 +145,15 @@ mod tests {
     #[case(TEST_DATA_1, 289863851)]
     fn find_lowest_location_number_test(#[case] data: &str, #[case] expected: i64) {
         let actual = find_lowest_location_number(data);
+
+        assert_eq!(expected, actual);
+    }
+
+    #[rstest]
+    #[case(TEST_DATA_0, 46)]
+    #[case(TEST_DATA_1, 0)]
+    fn find_lowest_location_number_with_seed_range_test(#[case] data: &str, #[case] expected: i64) {
+        let actual = find_lowest_location_number_with_seed_range(data);
 
         assert_eq!(expected, actual);
     }
