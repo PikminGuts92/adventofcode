@@ -11,28 +11,57 @@ use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple
 
 #[derive(Debug)]
 pub struct SeedMapData {
-    pub seed_ids: Vec<u32>,
-    pub seed_to_soil_map: Vec<[u32; 3]>,
-    pub soil_to_fertilizer_map: Vec<[u32; 3]>,
-    pub fertilizer_to_water_map: Vec<[u32; 3]>,
-    pub water_to_light_map: Vec<[u32; 3]>,
-    pub light_to_temperature_map: Vec<[u32; 3]>,
-    pub temperature_to_humidity_map: Vec<[u32; 3]>,
-    pub humidity_to_location_map: Vec<[u32; 3]>,
+    pub seed_ids: Vec<i64>,
+    pub seed_to_soil_map: Vec<[i64; 3]>,
+    pub soil_to_fertilizer_map: Vec<[i64; 3]>,
+    pub fertilizer_to_water_map: Vec<[i64; 3]>,
+    pub water_to_light_map: Vec<[i64; 3]>,
+    pub light_to_temperature_map: Vec<[i64; 3]>,
+    pub temperature_to_humidity_map: Vec<[i64; 3]>,
+    pub humidity_to_location_map: Vec<[i64; 3]>,
 }
 
-fn parse_seed_ids<'a>(text: &'a str) -> IResult<&'a str, Vec<u32>> {
+impl SeedMapData {
+    pub fn map_seed_id_to_location(&self, seed_id: i64) -> i64 {
+        let soil_id = Self::map_id(seed_id, &self.seed_to_soil_map);
+        let fertilizer_id = Self::map_id(soil_id, &self.soil_to_fertilizer_map);
+        let water_id = Self::map_id(fertilizer_id, &self.fertilizer_to_water_map);
+        let light_id = Self::map_id(water_id, &self.water_to_light_map);
+
+        let temperature_id = Self::map_id(light_id, &self.light_to_temperature_map);
+        let humidity_id = Self::map_id(temperature_id, &self.temperature_to_humidity_map);
+        let location_id = Self::map_id(humidity_id, &self.humidity_to_location_map);
+
+        location_id
+    }
+
+    fn map_id(source_id: i64, map: &Vec<[i64; 3]>) -> i64 {
+        for [dest_start, source_start, length] in map {
+            //let dest_range = *dest_start..=(*dest_start + *length);
+            let source_range = *source_start..=(*source_start + *length);
+
+            if source_range.contains(&source_id) {
+                let diff = dest_start - source_start;
+                return source_id + diff;
+            }
+        }
+
+        source_id
+    }
+}
+
+fn parse_seed_ids<'a>(text: &'a str) -> IResult<&'a str, Vec<i64>> {
     preceded(
         preceded(
             take_until("seeds: "),
             tag("seeds: ")),
         separated_list1(
             space1,
-            map(digit1, |nums: &str| nums.parse::<u32>().unwrap()))
+            map(digit1, |nums: &str| nums.parse::<i64>().unwrap()))
     )(text)
 }
 
-fn parse_map<'a>(text: &'a str, name: &str) -> IResult<&'a str, Vec<[u32; 3]>> {
+fn parse_map<'a>(text: &'a str, name: &str) -> IResult<&'a str, Vec<[i64; 3]>> {
     preceded(
         preceded(
             take_until(name),
@@ -46,8 +75,8 @@ fn parse_map<'a>(text: &'a str, name: &str) -> IResult<&'a str, Vec<[u32; 3]>> {
                         space1,
                         map(
                             digit1,
-                            |nums: &str| nums.parse::<u32>().unwrap())),
-                    |n: Vec<u32>| [n[0], n[1], n[2]]))))(text)
+                            |nums: &str| nums.parse::<i64>().unwrap())),
+                    |n: Vec<i64>| [n[0], n[1], n[2]]))))(text)
 }
 
 fn parse_seed_data(text: &str) -> SeedMapData {
@@ -72,12 +101,18 @@ fn parse_seed_data(text: &str) -> SeedMapData {
     }
 }
 
-fn find_lowest_location_number(data: &str) -> u32 {
+fn find_lowest_location_number(data: &str) -> i64 {
+    let mut smallest_location_id = i64::MAX;
     let seed_data = parse_seed_data(data);
 
-    //println!("{seed_data:#?}\n\n\n");
+    for seed_id in seed_data.seed_ids.iter() {
+        let location_id = seed_data.map_seed_id_to_location(*seed_id);
+        //println!("seed id: {seed_id}, location id: {location_id}");
 
-    0
+        smallest_location_id = smallest_location_id.min(location_id);
+    }
+
+    smallest_location_id
 }
 
 #[cfg(test)] mod data;
@@ -89,7 +124,8 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_0, 35)]
-    fn find_lowest_location_number_test(#[case] data: &str, #[case] expected: u32) {
+    #[case(TEST_DATA_1, 289863851)]
+    fn find_lowest_location_number_test(#[case] data: &str, #[case] expected: i64) {
         let actual = find_lowest_location_number(data);
 
         assert_eq!(expected, actual);
