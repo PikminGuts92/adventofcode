@@ -116,21 +116,37 @@ fn find_lowest_location_number(data: &str) -> i64 {
 }
 
 fn find_lowest_location_number_with_seed_range(data: &str) -> i64 {
-    let mut smallest_location_id = i64::MAX;
+    use rayon::prelude::*;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicI64, Ordering};
+
+    //let mut smallest_location_id = i64::MAX;
     let seed_data = parse_seed_data(data);
+    let smallest_location_id = AtomicI64::new(i64::MAX);
 
     let seed_id_ranges = seed_data.seed_ids
         .chunks_exact(2)
         .map(|s| s[0]..=(s[0] + s[1]))
         .collect::<Vec<_>>();
 
-    for seed_id in seed_id_ranges.into_iter().flatten() {
+    /*for seed_id in seed_id_ranges.into_iter().flatten() {
         let location_id = seed_data.map_seed_id_to_location(seed_id);
 
         smallest_location_id = smallest_location_id.min(location_id);
-    }
+    }*/
 
-    smallest_location_id
+    seed_id_ranges
+        .into_par_iter()
+        .flatten()
+        .for_each(|seed_id| {
+            let location_id = seed_data.map_seed_id_to_location(seed_id);
+
+            //let current_smallest_id = smallest_location_id.;
+            let min_id = smallest_location_id.load(Ordering::Acquire);
+            smallest_location_id.store(min_id.min(location_id), Ordering::Release);
+        });
+
+    smallest_location_id.into_inner()
 }
 
 #[cfg(test)] mod data;
@@ -151,7 +167,7 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_0, 46)]
-    #[case(TEST_DATA_1, 0)]
+    #[case(TEST_DATA_1, 0)] // 60568896 (too high), 60581695 (too high), 60568933 (too high), 60571454
     fn find_lowest_location_number_with_seed_range_test(#[case] data: &str, #[case] expected: i64) {
         let actual = find_lowest_location_number_with_seed_range(data);
 
