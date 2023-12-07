@@ -1,4 +1,4 @@
-pub const TEST_DATA_0: [(&[u8], u32); 5] = [
+pub const TEST_DATA_0: [(&[u8; 5], u32); 5] = [
     (b"32T3K", 765),
     (b"T55J5", 684),
     (b"KK677", 28),
@@ -6,7 +6,7 @@ pub const TEST_DATA_0: [(&[u8], u32); 5] = [
     (b"QQQJA", 483),
 ];
 
-pub const TEST_DATA_1: [(&[u8], u32); 1000] = [
+pub const TEST_DATA_1: [(&[u8; 5], u32); 1000] = [
     (b"3Q373", 470),
     (b"K53JT", 351),
     (b"A9JK9", 856),
