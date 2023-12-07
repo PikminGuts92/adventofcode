@@ -1,12 +1,20 @@
-pub const TEST_DATA_0: [(u32, u32); 3] = [
+pub const TEST_DATA_0: [(u64, u64); 3] = [
     (7, 9),
     (15, 40),
     (30, 200),
 ];
 
-pub const TEST_DATA_1: [(u32, u32); 4] = [
+pub const TEST_DATA_1: [(u64, u64); 4] = [
     (50, 242),
     (74, 1017),
     (86, 1691),
     (85, 1252),
+];
+
+pub const TEST_DATA_2: [(u64, u64); 1] = [
+    (71530, 940200),
+];
+
+pub const TEST_DATA_3: [(u64, u64); 1] = [
+    (50748685, 242101716911252),
 ];
