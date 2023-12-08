@@ -142,8 +142,12 @@ fn find_lowest_location_number_with_seed_range(data: &str) -> i64 {
             let location_id = seed_data.map_seed_id_to_location(seed_id);
 
             //let current_smallest_id = smallest_location_id.;
-            let min_id = smallest_location_id.load(Ordering::Acquire);
-            smallest_location_id.store(min_id.min(location_id), Ordering::Release);
+            //let min_id = smallest_location_id.load(Ordering::Acquire);
+            //smallest_location_id.store(min_id.min(location_id), Ordering::Release);
+
+            smallest_location_id.fetch_update(Ordering::Release, Ordering::Acquire, |current_smallest| {
+                Some(current_smallest.min(location_id))
+            }).unwrap();
         });
 
     smallest_location_id.into_inner()
@@ -167,7 +171,7 @@ mod tests {
 
     #[rstest]
     #[case(TEST_DATA_0, 46)]
-    #[case(TEST_DATA_1, 0)] // 60568896 (too high), 60581695 (too high), 60568933 (too high), 60571454
+    #[case(TEST_DATA_1, 60568880)]
     fn find_lowest_location_number_with_seed_range_test(#[case] data: &str, #[case] expected: i64) {
         let actual = find_lowest_location_number_with_seed_range(data);
 
