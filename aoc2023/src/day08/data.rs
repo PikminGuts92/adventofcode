@@ -760,3 +760,16 @@ pub const TEST_DATA_2_NODES: [(&[u8; 3], &[u8; 3], &[u8; 3]); 738] = [
     (b"RLB", b"TTV", b"MJB"),
     (b"NDS", b"RQX", b"CQD"),
 ];
+
+pub const TEST_DATA_3_NAV: &[u8] = b"LR";
+
+pub const TEST_DATA_3_NODES: [(&[u8; 3], &[u8; 3], &[u8; 3]); 8] = [
+    (b"11A", b"11B", b"XXX"),
+    (b"11B", b"XXX", b"11Z"),
+    (b"11Z", b"11B", b"XXX"),
+    (b"22A", b"22B", b"XXX"),
+    (b"22B", b"22C", b"22C"),
+    (b"22C", b"22Z", b"22Z"),
+    (b"22Z", b"22B", b"22B"),
+    (b"XXX", b"XXX", b"XXX"),
+];
