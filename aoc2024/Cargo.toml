@@ -1,0 +1,14 @@
+[package]
+name = "aoc2024"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+csv = { workspace = true }
+nom = { workspace = true }
+rayon = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+rstest = { workspace = true }
